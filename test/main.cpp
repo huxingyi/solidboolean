@@ -1,6 +1,7 @@
 #include <string>
 #include <iostream>
 #include "vector3.h"
+#include "solidboolean.h"
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
@@ -48,6 +49,25 @@ static bool loadObj(const std::string &filename,
 
 int main(int argc, char ** argv)
 {
-    loadObj();
+    std::vector<Vector3> firstVertices;
+    std::vector<std::vector<size_t>> firstTriangles;
+    
+    std::vector<Vector3> secondVertices; 
+    std::vector<std::vector<size_t>> secondTriangles;
+    
+    loadObj("a.obj", firstVertices, firstTriangles);
+    loadObj("b.obj", secondVertices, secondTriangles);
+    
+    SolidMesh firstMesh;
+    firstMesh.setVertices(&firstVertices);
+    firstMesh.setTriangles(&firstTriangles);
+    
+    SolidMesh secondMesh;
+    secondMesh.setVertices(&secondVertices);
+    secondMesh.setTriangles(&secondTriangles);
+    
+    SolidBoolean solidBoolean(&firstMesh, &secondMesh);
+    solidBoolean.combine();
+    
     return 0;
 }

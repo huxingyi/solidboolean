@@ -1,12 +1,10 @@
 cmake_minimum_required(VERSION 3.1...3.19)
 
-project(test-solidboolean
-  VERSION 1.0
-  LANGUAGES CXX
-)
+project(test-solidboolean)
 
 include_directories(
     ../thirdparty/eigen
+    ../thirdparty/GuigueDevillers03
     ../src
 )
 
@@ -18,6 +16,18 @@ add_executable(test-solidboolean
     ../src/vector2.h
     
     ../src/double.h
+    
+    ../src/axisalignedboundingbox.cpp
+    ../src/axisalignedboundingbox.h
+    
+    ../src/axisalignedboundingboxtree.cpp
+    ../src/axisalignedboundingboxtree.h
+    
+    ../src/solidmesh.cpp
+    ../src/solidmesh.h
+    
+    ../src/solidboolean.cpp
+    ../src/solidboolean.h
     
     ../thirdparty/GuigueDevillers03/tri_tri_intersect.c
     ../thirdparty/GuigueDevillers03/tri_tri_intersect.h
