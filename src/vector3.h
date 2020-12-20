@@ -213,6 +213,11 @@ public:
         return false;
     }
     
+    inline bool operator==(const Vector3 &other) const
+    {
+        return !(*this < other) && !(other < *this);
+    }
+    
     inline static double area(const Vector3 &a, const Vector3 &b, const Vector3 &c)
     {
         auto ab = b - a;

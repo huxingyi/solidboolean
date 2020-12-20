@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <map>
 #include "solidboolean.h"
 #include "tri_tri_intersect.h"
 
@@ -118,9 +119,37 @@ void SolidBoolean::combine()
     std::vector<std::vector<size_t>> firstBoundaryTriangles;
     std::vector<std::vector<size_t>> secondBoundaryTriangles;
     
+    std::vector<Vector3> debugPoints;
+    std::vector<std::vector<size_t>> debugFaces;
+    
+    struct IntersectedContext
+    {
+        std::vector<Vector3> points;
+        std::map<Vector3, size_t> positionMap;
+        std::vector<std::pair<size_t, size_t>> edges;
+    };
+    
+    std::map<size_t, IntersectedContext> firstTriangleIntersectedContext;
+    
+    auto addIntersectedPoint = [](IntersectedContext &context, const Vector3 &position) {
+        auto insertResult = context.positionMap.insert({position, context.points.size()});
+        if (insertResult.second) {
+            context.points.push_back(position);
+        }
+        return insertResult.first->second;
+    };
+    
     for (const auto &pair: *m_potentialIntersectedPairs) {
         std::pair<Vector3, Vector3> newEdge;
         if (intersectTwoFaces(pair.first, pair.second, newEdge)) {
+            auto &firstContext = firstTriangleIntersectedContext[pair.first];
+            size_t firstPointIndex = addIntersectedPoint(firstContext, newEdge.first);
+            size_t secondPointIndex = addIntersectedPoint(firstContext, newEdge.second);
+            firstContext.edges.push_back({firstPointIndex, secondPointIndex});
+            
+            debugFaces.push_back({debugPoints.size(), debugPoints.size() + 1});
+            debugPoints.push_back(newEdge.first);
+            debugPoints.push_back(newEdge.second);
             firstBoundaryTriangles.push_back((*m_firstMesh->triangles())[pair.first]);
             secondBoundaryTriangles.push_back((*m_secondMesh->triangles())[pair.second]);
         }
@@ -128,4 +157,15 @@ void SolidBoolean::combine()
     
     exportObject("debug-first.obj", *m_firstMesh->vertices(), firstBoundaryTriangles);
     exportObject("debug-second.obj", *m_secondMesh->vertices(), secondBoundaryTriangles);
+   
+    {
+        FILE *fp = fopen("debug.obj", "wb");
+        for (const auto &it: debugPoints) {
+            fprintf(fp, "v %f %f %f\n", it.x(), it.y(), it.z());
+        }
+        for (const auto &it: debugFaces) {
+            fprintf(fp, "l %zu %zu\n", it[0] + 1, it[1] + 1);
+        }
+        fclose(fp);
+    }
 }
