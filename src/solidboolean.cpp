@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <map>
+#include <unordered_map>
+#include <unordered_set>
 #include "solidboolean.h"
 #include "tri_tri_intersect.h"
 
@@ -126,10 +128,11 @@ void SolidBoolean::combine()
     {
         std::vector<Vector3> points;
         std::map<Vector3, size_t> positionMap;
-        std::vector<std::pair<size_t, size_t>> edges;
+        std::unordered_map<size_t, std::unordered_set<size_t>> neighborMap;
     };
     
     std::map<size_t, IntersectedContext> firstTriangleIntersectedContext;
+    std::map<size_t, IntersectedContext> secondTriangleIntersectedContext;
     
     auto addIntersectedPoint = [](IntersectedContext &context, const Vector3 &position) {
         auto insertResult = context.positionMap.insert({position, context.points.size()});
@@ -142,10 +145,21 @@ void SolidBoolean::combine()
     for (const auto &pair: *m_potentialIntersectedPairs) {
         std::pair<Vector3, Vector3> newEdge;
         if (intersectTwoFaces(pair.first, pair.second, newEdge)) {
-            auto &firstContext = firstTriangleIntersectedContext[pair.first];
-            size_t firstPointIndex = addIntersectedPoint(firstContext, newEdge.first);
-            size_t secondPointIndex = addIntersectedPoint(firstContext, newEdge.second);
-            firstContext.edges.push_back({firstPointIndex, secondPointIndex});
+            {
+                auto &context = firstTriangleIntersectedContext[pair.first];
+                size_t firstPointIndex = addIntersectedPoint(context, newEdge.first);
+                size_t secondPointIndex = addIntersectedPoint(context, newEdge.second);
+                context.neighborMap[firstPointIndex].insert(secondPointIndex);
+                context.neighborMap[secondPointIndex].insert(firstPointIndex);
+            }
+            
+            {
+                auto &context = secondTriangleIntersectedContext[pair.second];
+                size_t firstPointIndex = addIntersectedPoint(context, newEdge.first);
+                size_t secondPointIndex = addIntersectedPoint(context, newEdge.second);
+                context.neighborMap[firstPointIndex].insert(secondPointIndex);
+                context.neighborMap[secondPointIndex].insert(firstPointIndex);
+            }
             
             debugFaces.push_back({debugPoints.size(), debugPoints.size() + 1});
             debugPoints.push_back(newEdge.first);

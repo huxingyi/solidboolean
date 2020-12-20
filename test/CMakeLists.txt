@@ -5,6 +5,7 @@ project(test-solidboolean)
 include_directories(
     ../thirdparty/eigen
     ../thirdparty/GuigueDevillers03
+    ../thirdparty/earcut.hpp/include/mapbox
     ../src
 )
 
@@ -31,4 +32,6 @@ add_executable(test-solidboolean
     
     ../thirdparty/GuigueDevillers03/tri_tri_intersect.c
     ../thirdparty/GuigueDevillers03/tri_tri_intersect.h
+    
+    ../thirdparty/earcut.hpp/include/mapbox/earcut.hpp
 )
