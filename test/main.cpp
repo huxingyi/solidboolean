@@ -61,10 +61,12 @@ int main(int argc, char ** argv)
     SolidMesh firstMesh;
     firstMesh.setVertices(&firstVertices);
     firstMesh.setTriangles(&firstTriangles);
+    firstMesh.calculateTriangleNormals();
     
     SolidMesh secondMesh;
     secondMesh.setVertices(&secondVertices);
     secondMesh.setTriangles(&secondTriangles);
+    secondMesh.calculateTriangleNormals();
     
     SolidBoolean solidBoolean(&firstMesh, &secondMesh);
     solidBoolean.combine();

@@ -27,6 +27,9 @@ add_executable(test-solidboolean
     ../src/solidmesh.cpp
     ../src/solidmesh.h
     
+    ../src/retriangulator.cpp
+    ../src/retriangulator.h
+    
     ../src/solidboolean.cpp
     ../src/solidboolean.h
     

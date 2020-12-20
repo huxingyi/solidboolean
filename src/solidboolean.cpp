@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include "solidboolean.h"
 #include "tri_tri_intersect.h"
+#include "retriangulator.h"
 
 SolidBoolean::SolidBoolean(const SolidMesh *m_firstMesh,
         const SolidMesh *m_secondMesh) :
@@ -147,18 +148,22 @@ void SolidBoolean::combine()
         if (intersectTwoFaces(pair.first, pair.second, newEdge)) {
             {
                 auto &context = firstTriangleIntersectedContext[pair.first];
-                size_t firstPointIndex = addIntersectedPoint(context, newEdge.first);
-                size_t secondPointIndex = addIntersectedPoint(context, newEdge.second);
-                context.neighborMap[firstPointIndex].insert(secondPointIndex);
-                context.neighborMap[secondPointIndex].insert(firstPointIndex);
+                size_t firstPointIndex = 3 + addIntersectedPoint(context, newEdge.first);
+                size_t secondPointIndex = 3 + addIntersectedPoint(context, newEdge.second);
+                if (firstPointIndex != secondPointIndex) {
+                    context.neighborMap[firstPointIndex].insert(secondPointIndex);
+                    context.neighborMap[secondPointIndex].insert(firstPointIndex);
+                }
             }
             
             {
                 auto &context = secondTriangleIntersectedContext[pair.second];
-                size_t firstPointIndex = addIntersectedPoint(context, newEdge.first);
-                size_t secondPointIndex = addIntersectedPoint(context, newEdge.second);
-                context.neighborMap[firstPointIndex].insert(secondPointIndex);
-                context.neighborMap[secondPointIndex].insert(firstPointIndex);
+                size_t firstPointIndex = 3 + addIntersectedPoint(context, newEdge.first);
+                size_t secondPointIndex = 3 + addIntersectedPoint(context, newEdge.second);
+                if (firstPointIndex != secondPointIndex) {
+                    context.neighborMap[firstPointIndex].insert(secondPointIndex);
+                    context.neighborMap[secondPointIndex].insert(firstPointIndex);
+                }
             }
             
             debugFaces.push_back({debugPoints.size(), debugPoints.size() + 1});
@@ -167,6 +172,20 @@ void SolidBoolean::combine()
             firstBoundaryTriangles.push_back((*m_firstMesh->triangles())[pair.first]);
             secondBoundaryTriangles.push_back((*m_secondMesh->triangles())[pair.second]);
         }
+    }
+    
+    for (const auto &it: firstTriangleIntersectedContext) {
+        const auto &triangle = (*m_firstMesh->triangles())[it.first];
+        ReTriangulator reTriangulator({
+                (*m_firstMesh->vertices())[triangle[0]],
+                (*m_firstMesh->vertices())[triangle[1]],
+                (*m_firstMesh->vertices())[triangle[2]]
+            }, 
+            (*m_firstMesh->triangleNormals())[it.first]
+        );
+        reTriangulator.setEdges(it.second.points,
+            &it.second.neighborMap);
+        reTriangulator.triangulate();
     }
     
     exportObject("debug-first.obj", *m_firstMesh->vertices(), firstBoundaryTriangles);
