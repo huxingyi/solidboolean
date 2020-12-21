@@ -92,6 +92,23 @@ int ReTriangulator::attachPointToTriangleEdge(const Vector2 &point)
     return -1;
 }
 
+void ReTriangulator::buildInnerPolygonHierarchy()
+{
+    std::unordered_map<size_t, size_t> innerParentMap;
+    for (size_t i = 0; i < m_innerPolygons.size(); ++i) {
+        for (size_t j = i + 1; j < m_innerPolygons.size(); ++j) {
+            if (m_points[m_innerPolygons[i][0]].isInPolygon(m_points, m_innerPolygons[j])) {
+                innerParentMap[i] = j;
+            } else if (m_points[m_innerPolygons[j][0]].isInPolygon(m_points, m_innerPolygons[i])) {
+                innerParentMap[j] = i;
+            }
+        }
+    }
+    
+    for (const auto &it: innerParentMap)
+        std::cout << "innerPolygon[" << it.first << "].parent=" << it.second << std::endl;
+}
+
 void ReTriangulator::buildPolygons()
 {
     struct EdgePoint
@@ -139,10 +156,11 @@ void ReTriangulator::buildPolygons()
             ringPoints.push_back(it);
     }
     
-    for (size_t i = 0; i < ringPoints.size(); ++i) {
-        const auto &it = ringPoints[i];
-        std::cout << "[" << i << "] point:" << it.pointIndex << " polylineIndex:" << it.polylineIndex << std::endl;
-    }
+    //std::cout << "m_polylines:" << m_polylines.size() << std::endl;
+    //for (size_t i = 0; i < ringPoints.size(); ++i) {
+    //    const auto &it = ringPoints[i];
+    //    std::cout << "[" << i << "] point:" << it.pointIndex << " polylineIndex:" << it.polylineIndex << std::endl;
+    //}
     
     
     /*
@@ -183,6 +201,7 @@ void ReTriangulator::buildPolygons()
 void ReTriangulator::triangulate()
 {
     lookupPolylinesFromNeighborMap(*m_neighborMapFrom3);
+    buildInnerPolygonHierarchy();
     buildPolygons();
     // TODO:
 }

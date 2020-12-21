@@ -24,6 +24,7 @@ private:
     
     void lookupPolylinesFromNeighborMap(const std::unordered_map<size_t, std::unordered_set<size_t>> &neighborMap);
     int attachPointToTriangleEdge(const Vector2 &point);
+    void buildInnerPolygonHierarchy();
     void buildPolygons();
 };
 
