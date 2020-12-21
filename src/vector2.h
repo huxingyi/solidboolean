@@ -161,7 +161,7 @@ public:
         return true;
     }
     
-    inline bool isInPolygon(const std::vector<Vector2> &polygon)
+    inline bool isInPolygon(const std::vector<Vector2> &polygon) const
     {
         bool inside = false;
         int i, j;
@@ -174,7 +174,20 @@ public:
         return inside;
     }
     
-    inline bool isOnLine(const Vector2 &a, const Vector2 &b)
+    inline bool isInPolygon(const std::vector<Vector2> &polygonVertices, const std::vector<size_t> &polygonIndices) const
+    {
+        bool inside = false;
+        int i, j;
+        for (i = 0, j = polygonIndices.size() - 1; i < polygonIndices.size(); j = i++) {
+            if (((polygonVertices[polygonIndices[i]].y() > y()) != (polygonVertices[polygonIndices[j]].y() > y())) &&
+                    (x() < (polygonVertices[polygonIndices[j]].x() - polygonVertices[polygonIndices[i]].x()) * (y() - polygonVertices[polygonIndices[i]].y()) / (polygonVertices[polygonIndices[j]].y() - polygonVertices[polygonIndices[i]].y()) + polygonVertices[polygonIndices[i]].x())) {
+                inside = !inside;
+            }
+        }
+        return inside;
+    }
+    
+    inline bool isOnLine(const Vector2 &a, const Vector2 &b) const
     {
         return Double::isZero(std::abs((y() - a.y()) * (b.x() - a.x()) - (x() - a.x()) * (b.y() - a.y())));
     }

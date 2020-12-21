@@ -19,7 +19,12 @@ private:
     Vector3 m_projectNormal;
     std::vector<Vector2> m_points;
     const std::unordered_map<size_t, std::unordered_set<size_t>> *m_neighborMapFrom3 = nullptr;
+    std::vector<std::vector<size_t>> m_polylines;
+    std::vector<std::vector<size_t>> m_innerPolygons;
+    
     void lookupPolylinesFromNeighborMap(const std::unordered_map<size_t, std::unordered_set<size_t>> &neighborMap);
+    int attachPointToTriangleEdge(const Vector2 &point);
+    void buildPolygons();
 };
 
 #endif
