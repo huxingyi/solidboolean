@@ -1,0 +1,26 @@
+DUST3D 1.0 xml 0000000132
+<?xml version="1.0" encoding="UTF-8"?>
+<ds3>
+    <model name="model.xml" offset="0" size="1710"/>
+</ds3>
+<?xml version="1.0" encoding="UTF-8"?>
+<canvas originX="0.653125" originY="0.471875" originZ="1.15313" rigType="None">
+    <nodes>
+        <node id="{0be93689-bf66-4e4d-aa2c-a59a1d13f5ff}" partId="{5a66476c-1187-4c1a-b4d4-c7739c97a962}" radius="0.1" x="0.653125" y="0.471875" z="1.15313"/>
+        <node id="{bf8768b2-cc6e-4e14-8155-187bd6636be3}" partId="{abd42f18-8eed-484a-8402-558e9094e8fd}" radius="0.00625" x="0.684375" y="0.446875" z="1.22813"/>
+        <node id="{f37c3c29-0b61-4797-b678-51b938864ade}" partId="{abd42f18-8eed-484a-8402-558e9094e8fd}" radius="0.00625" x="0.70625" y="0.259375" z="1.23438"/>
+    </nodes>
+    <edges>
+        <edge from="{f37c3c29-0b61-4797-b678-51b938864ade}" id="{cc726c18-4f1b-4567-94ed-2e1342188886}" partId="{abd42f18-8eed-484a-8402-558e9094e8fd}" to="{bf8768b2-cc6e-4e14-8155-187bd6636be3}"/>
+    </edges>
+    <parts>
+        <part base="Average" chamfered="false" disabled="true" id="{5a66476c-1187-4c1a-b4d4-c7739c97a962}" locked="false" rounded="false" smooth="true" subdived="false" visible="true" xMirrored="false"/>
+        <part base="Average" chamfered="false" disabled="false" id="{abd42f18-8eed-484a-8402-558e9094e8fd}" locked="false" rounded="false" smooth="true" subdived="false" visible="true" xMirrored="false"/>
+    </parts>
+    <components>
+        <component combineMode="Normal" expanded="true" id="{33f63802-9322-4937-9add-7add2b86ad81}" linkData="{5a66476c-1187-4c1a-b4d4-c7739c97a962}" linkDataType="partId"/>
+        <component combineMode="Normal" expanded="true" id="{842ef750-ba1a-49f2-a513-14ca476cb102}" linkData="{abd42f18-8eed-484a-8402-558e9094e8fd}" linkDataType="partId"/>
+    </components>
+    <materials/>
+    <motions/>
+</canvas>

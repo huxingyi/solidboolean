@@ -23,21 +23,27 @@ void ReTriangulator::setEdges(const std::vector<Vector3> &points,
 
 void ReTriangulator::lookupPolylinesFromNeighborMap(const std::unordered_map<size_t, std::unordered_set<size_t>> &neighborMap)
 {
-    std::unordered_set<size_t> endpoints;
+    std::vector<size_t> endpoints;
+    endpoints.reserve(neighborMap.size());
     for (const auto &it: neighborMap) {
         if (it.second.size() == 1) {
-            endpoints.insert(it.first);
+            endpoints.push_back(it.first);
+        }
+    }
+    for (const auto &it: neighborMap) {
+        if (it.second.size() > 1) {
+            endpoints.push_back(it.first);
         }
     }
     
     std::cout << "endpoints:" << endpoints.size() << std::endl;
     
-    while (!endpoints.empty()) {
-        size_t startEndpoint = *endpoints.begin();
-        endpoints.erase(startEndpoint);
+    std::unordered_set<size_t> visited;
+    for (const auto &startEndpoint: endpoints) {
+        if (visited.find(startEndpoint) != visited.end())
+            continue;
         std::queue<size_t> q;
         q.push(startEndpoint);
-        std::unordered_set<size_t> visited;
         std::vector<size_t> polyline;
         while (!q.empty()) {
             size_t loop = q.front();
@@ -53,6 +59,11 @@ void ReTriangulator::lookupPolylinesFromNeighborMap(const std::unordered_map<siz
                     break;
                 }
             }
+        }
+        if (polyline.size() >= 3) {
+            auto neighborOfLast = neighborMap.find(polyline.back());
+            if (neighborOfLast->second.find(startEndpoint) != neighborOfLast->second.end())
+                polyline.push_back(startEndpoint);
         }
         std::cout << "polyline:";
         for (const auto &it: polyline)
