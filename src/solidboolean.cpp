@@ -5,6 +5,7 @@
 #include "solidboolean.h"
 #include "tri_tri_intersect.h"
 #include "retriangulator.h"
+#include "positionkey.h"
 
 SolidBoolean::SolidBoolean(const SolidMesh *m_firstMesh,
         const SolidMesh *m_secondMesh) :
@@ -128,7 +129,7 @@ void SolidBoolean::combine()
     struct IntersectedContext
     {
         std::vector<Vector3> points;
-        std::map<Vector3, size_t> positionMap;
+        std::map<PositionKey, size_t> positionMap;
         std::unordered_map<size_t, std::unordered_set<size_t>> neighborMap;
     };
     
@@ -136,10 +137,13 @@ void SolidBoolean::combine()
     std::map<size_t, IntersectedContext> secondTriangleIntersectedContext;
     
     auto addIntersectedPoint = [](IntersectedContext &context, const Vector3 &position) {
-        auto insertResult = context.positionMap.insert({position, context.points.size()});
+        auto insertResult = context.positionMap.insert({PositionKey(position), context.points.size()});
         if (insertResult.second) {
+            //std::cout << "[" << (3 + context.points.size()) << "] New position:" << position << std::endl;
             context.points.push_back(position);
-        }
+        } //else {
+            //std::cout << "[" << (3 + insertResult.first->second) << "] Repeated position:" << position << std::endl;
+        //}
         return insertResult.first->second;
     };
     
@@ -156,6 +160,7 @@ void SolidBoolean::combine()
                 }
             }
             
+            /*
             {
                 auto &context = secondTriangleIntersectedContext[pair.second];
                 size_t firstPointIndex = 3 + addIntersectedPoint(context, newEdge.first);
@@ -165,6 +170,7 @@ void SolidBoolean::combine()
                     context.neighborMap[secondPointIndex].insert(firstPointIndex);
                 }
             }
+            */
             
             debugFaces.push_back({debugPoints.size(), debugPoints.size() + 1});
             debugPoints.push_back(newEdge.first);

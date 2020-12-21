@@ -196,28 +196,6 @@ public:
         return *this;
     }
     
-    inline bool operator<(const Vector3 &other) const
-    {
-        if (x() < other.x())
-            return true;
-        if (x() > other.x())
-            return false;
-        if (y() < other.y())
-            return true;
-        if (y() > other.y())
-            return false;
-        if (z() < other.z())
-            return true;
-        if (z() > other.z())
-            return false;
-        return false;
-    }
-    
-    inline bool operator==(const Vector3 &other) const
-    {
-        return !(*this < other) && !(other < *this);
-    }
-    
     inline static double area(const Vector3 &a, const Vector3 &b, const Vector3 &c)
     {
         auto ab = b - a;

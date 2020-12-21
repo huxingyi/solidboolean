@@ -27,16 +27,18 @@ void ReTriangulator::lookupPolylinesFromNeighborMap(const std::unordered_map<siz
     endpoints.reserve(neighborMap.size());
     for (const auto &it: neighborMap) {
         if (it.second.size() == 1) {
+            //std::cout << "Endpoint:" << it.first << "=>count:" << it.second.size() << std::endl;
             endpoints.push_back(it.first);
         }
     }
     for (const auto &it: neighborMap) {
         if (it.second.size() > 1) {
+            //std::cout << "Edge:" << it.first << "=>count:" << it.second.size() << std::endl;
             endpoints.push_back(it.first);
         }
     }
     
-    std::cout << "endpoints:" << endpoints.size() << std::endl;
+    //std::cout << "endpoints:" << endpoints.size() << std::endl;
     
     std::unordered_set<size_t> visited;
     for (const auto &startEndpoint: endpoints) {
@@ -68,6 +70,8 @@ void ReTriangulator::lookupPolylinesFromNeighborMap(const std::unordered_map<siz
         std::cout << "polyline:";
         for (const auto &it: polyline)
             std::cout << it << " ";
+        if (polyline.front() == polyline.back())
+            std::cout << "(RING)";
         std::cout << std::endl;
     }
     // TODO:
