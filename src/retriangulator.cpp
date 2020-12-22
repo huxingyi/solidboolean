@@ -109,14 +109,16 @@ void ReTriangulator::buildInnerPolygonHierarchy()
         std::cout << "innerPolygon[" << it.first << "].parent=" << it.second << std::endl;
 }
 
-void ReTriangulator::buildPolygons()
+bool ReTriangulator::buildPolygons()
 {
     struct EdgePoint
     {
-        size_t pointIndex;
-        int polylineIndex;
-        bool reversed;
-        double squaredDistance;
+        size_t pointIndex = 0;
+        size_t linkToPointIndex = 0;
+        int polylineIndex = -1;
+        bool reversed = false;
+        double squaredDistance = 0.0;
+        int linkTo = -1;
     };
     std::vector<std::vector<EdgePoint>> edgePoints(3);
     for (int polylineIndex = 0; polylineIndex < (int)m_polylines.size(); ++polylineIndex) {
@@ -130,12 +132,14 @@ void ReTriangulator::buildPolygons()
         }
         edgePoints[frontEdge].push_back({
             polyline.front(),
+            polyline.back(),
             polylineIndex,
             false,
             (m_points[polyline.front()] - m_points[frontEdge]).lengthSquared()
         });
         edgePoints[backEdge].push_back({
             polyline.back(),
+            polyline.front(),
             polylineIndex,
             true,
             (m_points[polyline.back()] - m_points[backEdge]).lengthSquared()
@@ -147,23 +151,15 @@ void ReTriangulator::buildPolygons()
         });
     }
     
+    // Turn triangle to ring
     std::vector<EdgePoint> ringPoints;
     for (size_t i = 0; i < 3; ++i) {
-        ringPoints.push_back({
-            i, -1, false, 0.0
-        });
+        ringPoints.push_back({i});
         for (const auto &it: edgePoints[i])
             ringPoints.push_back(it);
     }
     
-    //std::cout << "m_polylines:" << m_polylines.size() << std::endl;
-    //for (size_t i = 0; i < ringPoints.size(); ++i) {
-    //    const auto &it = ringPoints[i];
-    //    std::cout << "[" << i << "] point:" << it.pointIndex << " polylineIndex:" << it.polylineIndex << std::endl;
-    //}
-    
-    
-    /*
+    // Make polyline link
     std::unordered_map<size_t, size_t> pointRingPositionMap;
     for (size_t i = 0; i < ringPoints.size(); ++i) {
         const auto &it = ringPoints[i];
@@ -171,31 +167,70 @@ void ReTriangulator::buildPolygons()
             continue;
         pointRingPositionMap.insert({it.pointIndex, i});
     }
+    for (size_t i = 0; i < ringPoints.size(); ++i) {
+        auto &it = ringPoints[i];
+        if (-1 == it.polylineIndex)
+            continue;
+        auto findLinkTo = pointRingPositionMap.find(it.linkToPointIndex);
+        if (findLinkTo == pointRingPositionMap.end())
+            continue;
+        it.linkTo = findLinkTo->second;
+    }
+    
+    std::cout << "Build polygons..." << std::endl;
     
     std::unordered_set<size_t> visited;
-    for (size_t i = 0; i < ringPoints.size(); ++i) {
-        std::vector<size_t> polygon;
-        
-    }
-    */
-    
-    /*
-    for (const auto &it: ringPoints) {
-        if (-1 == it.polylineIndex) {
-            polygon.push_back(it.pointIndex);
+    std::queue<size_t> startQueue;
+    startQueue.push(0);
+    while (!startQueue.empty()) {
+        auto startIndex = startQueue.front();
+        startQueue.pop();
+        if (visited.find(startIndex) != visited.end())
             continue;
-        }
-        const auto &polyline = m_polylines[it.polylineIndex];
-        if (it.reversed) {
-            for (int i = (int)polyline.size() - 1; i >= 0; --i)
-                polygon.push_back(polyline[i]);
-        } else {
-            for (const auto &pointIndex: polyline)
-                polygon.push_back(pointIndex);
-        }
+        std::cout << "Start " << startIndex << std::endl;
+        visited.insert(startIndex);
+        std::vector<size_t> polygon;
+        auto loopIndex = startIndex;
+        do {
+            std::cout << "Loop " << loopIndex << std::endl;
+            auto &it = ringPoints[loopIndex];
+            if (-1 == it.polylineIndex) {
+                polygon.push_back(it.pointIndex);
+                loopIndex = (loopIndex + 1) % ringPoints.size();
+            } else if (-1 != it.linkTo) {
+                const auto &polyline = m_polylines[it.polylineIndex];
+                if (it.reversed) {
+                    for (int i = (int)polyline.size() - 1; i >= 0; --i)
+                        polygon.push_back(polyline[i]);
+                } else {
+                    for (const auto &pointIndex: polyline)
+                        polygon.push_back(pointIndex);
+                }
+                startQueue.push((loopIndex + 1) % ringPoints.size());
+                loopIndex = (it.linkTo + 1) % ringPoints.size();
+            } else {
+                std::cerr << "linkTo failed" << std::endl;
+                return false;
+            }
+        } while (loopIndex != startIndex);
+        m_polygons.push_back(polygon);
     }
-    */
-    // TODO:
+    
+    std::cout << "m_polylines:" << m_polylines.size() << std::endl;
+    for (size_t i = 0; i < ringPoints.size(); ++i) {
+        const auto &it = ringPoints[i];
+        std::cout << "[" << i << "] point:" << it.pointIndex << " linkPoint:" << it.linkToPointIndex << " polylineIndex:" << it.polylineIndex << " linkTo:" << it.linkTo << std::endl;
+    }
+    
+    for (size_t i = 0; i < m_polygons.size(); ++i) {
+        const auto &it = m_polygons[i];
+        std::cout << "Polygon[" << i << "]:";
+        for (const auto &pointIndex: it)
+            std::cout << pointIndex << "\t";
+        std::cout << std::endl;
+    }
+    
+    return true;
 }
 
 void ReTriangulator::triangulate()
