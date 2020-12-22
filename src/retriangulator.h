@@ -13,6 +13,7 @@ public:
     void setEdges(const std::vector<Vector3> &points,
         const std::unordered_map<size_t, std::unordered_set<size_t>> *neighborMapFrom3);
     void triangulate();
+    const std::vector<std::vector<size_t>> &polygons() const;
 private:
     Vector3 m_projectAxis;
     Vector3 m_projectOrigin;

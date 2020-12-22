@@ -241,3 +241,9 @@ void ReTriangulator::triangulate()
     // TODO:
 }
 
+const std::vector<std::vector<size_t>> &ReTriangulator::polygons() const
+{
+    return m_polygons;
+}
+
+
