@@ -188,12 +188,13 @@ bool ReTriangulator::buildPolygons()
         if (visited.find(startIndex) != visited.end())
             continue;
         std::cout << "Start " << startIndex << std::endl;
-        visited.insert(startIndex);
+        //visited.insert(startIndex);
         std::vector<size_t> polygon;
         auto loopIndex = startIndex;
         do {
             std::cout << "Loop " << loopIndex << std::endl;
             auto &it = ringPoints[loopIndex];
+            visited.insert(loopIndex);
             if (-1 == it.polylineIndex) {
                 polygon.push_back(it.pointIndex);
                 loopIndex = (loopIndex + 1) % ringPoints.size();

@@ -104,14 +104,17 @@ bool SolidBoolean::intersectTwoFaces(size_t firstIndex, size_t secondIndex, std:
     return true;
 }
 
-void SolidBoolean::exportObject(const char *filename, const std::vector<Vector3> &vertices, const std::vector<std::vector<size_t>> &triangles)
+void SolidBoolean::exportObject(const char *filename, const std::vector<Vector3> &vertices, const std::vector<std::vector<size_t>> &faces)
 {
     FILE *fp = fopen(filename, "wb");
     for (const auto &it: vertices) {
         fprintf(fp, "v %f %f %f\n", it.x(), it.y(), it.z());
     }
-    for (const auto &it: triangles) {
-        fprintf(fp, "f %zu %zu %zu\n", it[0] + 1, it[1] + 1, it[2] + 1);
+    for (const auto &it: faces) {
+        fprintf(fp, "f");
+        for (const auto &v: it)
+            fprintf(fp, " %zu", v + 1);
+        fprintf(fp, "\n");
     }
     fclose(fp);
 }
@@ -192,7 +195,7 @@ void SolidBoolean::combine()
         reTriangulator.setEdges(it.second.points,
             &it.second.neighborMap);
         reTriangulator.triangulate();
-        size_t polygonIndex = 0;
+        static size_t polygonIndex = 0;
         for (const auto &polygon: reTriangulator.polygons()) {
             std::vector<Vector3> vertices;
             vertices.push_back((*m_firstMesh->vertices())[triangle[0]]);
