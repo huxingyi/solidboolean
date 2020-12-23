@@ -1,5 +1,7 @@
 #include <queue>
 #include <iostream>
+#include <earcut.hpp>
+#include <array>
 #include "retriangulator.h"
 
 ReTriangulator::ReTriangulator(const std::vector<Vector3> &points, 
@@ -92,21 +94,38 @@ int ReTriangulator::attachPointToTriangleEdge(const Vector2 &point)
     return -1;
 }
 
-void ReTriangulator::buildInnerPolygonHierarchy()
+void ReTriangulator::buildPolygonHierarchy()
 {
-    std::unordered_map<size_t, size_t> innerParentMap;
     for (size_t i = 0; i < m_innerPolygons.size(); ++i) {
         for (size_t j = i + 1; j < m_innerPolygons.size(); ++j) {
             if (m_points[m_innerPolygons[i][0]].isInPolygon(m_points, m_innerPolygons[j])) {
-                innerParentMap[i] = j;
+                m_innerParentMap[i] = j;
             } else if (m_points[m_innerPolygons[j][0]].isInPolygon(m_points, m_innerPolygons[i])) {
-                innerParentMap[j] = i;
+                m_innerParentMap[j] = i;
             }
         }
     }
     
-    for (const auto &it: innerParentMap)
+    for (const auto &it: m_innerParentMap)
         std::cout << "innerPolygon[" << it.first << "].parent=" << it.second << std::endl;
+
+    for (size_t i = 0; i < m_innerPolygons.size(); ++i) {
+        const auto &inner = m_innerPolygons[i];
+        if (m_innerParentMap.find(i) != m_innerParentMap.end())
+            continue;
+        for (size_t j = 0; j < m_polygons.size(); ++j) {
+            if (m_points[inner[0]].isInPolygon(m_points, m_polygons[j])) {
+                m_polygonHoles[j].push_back(i);
+            }
+        }
+    }
+    
+    for (const auto &it: m_polygonHoles) {
+        std::cout << "Polygon[" << it.first << "] holes:" << std::endl;
+        for (const auto &inner: it.second) {
+            std::cout << "  inner:" << inner << std::endl;
+        }
+    }
 }
 
 bool ReTriangulator::buildPolygons()
@@ -177,7 +196,7 @@ bool ReTriangulator::buildPolygons()
         it.linkTo = findLinkTo->second;
     }
     
-    std::cout << "Build polygons..." << std::endl;
+    //std::cout << "Build polygons..." << std::endl;
     
     std::unordered_set<size_t> visited;
     std::queue<size_t> startQueue;
@@ -187,12 +206,9 @@ bool ReTriangulator::buildPolygons()
         startQueue.pop();
         if (visited.find(startIndex) != visited.end())
             continue;
-        std::cout << "Start " << startIndex << std::endl;
-        //visited.insert(startIndex);
         std::vector<size_t> polygon;
         auto loopIndex = startIndex;
         do {
-            std::cout << "Loop " << loopIndex << std::endl;
             auto &it = ringPoints[loopIndex];
             visited.insert(loopIndex);
             if (-1 == it.polylineIndex) {
@@ -217,28 +233,78 @@ bool ReTriangulator::buildPolygons()
         m_polygons.push_back(polygon);
     }
     
-    std::cout << "m_polylines:" << m_polylines.size() << std::endl;
-    for (size_t i = 0; i < ringPoints.size(); ++i) {
-        const auto &it = ringPoints[i];
-        std::cout << "[" << i << "] point:" << it.pointIndex << " linkPoint:" << it.linkToPointIndex << " polylineIndex:" << it.polylineIndex << " linkTo:" << it.linkTo << std::endl;
-    }
+    //std::cout << "m_polylines:" << m_polylines.size() << std::endl;
+    //for (size_t i = 0; i < ringPoints.size(); ++i) {
+    //    const auto &it = ringPoints[i];
+    //    std::cout << "[" << i << "] point:" << it.pointIndex << " linkPoint:" << it.linkToPointIndex << " polylineIndex:" << it.polylineIndex << " linkTo:" << it.linkTo << std::endl;
+    //}
     
-    for (size_t i = 0; i < m_polygons.size(); ++i) {
-        const auto &it = m_polygons[i];
-        std::cout << "Polygon[" << i << "]:";
-        for (const auto &pointIndex: it)
-            std::cout << pointIndex << "\t";
-        std::cout << std::endl;
-    }
+    //for (size_t i = 0; i < m_polygons.size(); ++i) {
+    //    const auto &it = m_polygons[i];
+    //    std::cout << "Polygon[" << i << "]:";
+    //    for (const auto &pointIndex: it)
+    //        std::cout << pointIndex << "\t";
+    //    std::cout << std::endl;
+    //}
     
     return true;
 }
 
 void ReTriangulator::triangulate()
 {
+    for (size_t polygonIndex = 0; polygonIndex < m_polygons.size(); ++polygonIndex) {
+        const auto &polygon = m_polygons[polygonIndex];
+        
+        std::vector<std::vector<std::array<double, 2>>> polygonAndHoles;
+        
+        std::vector<size_t> pointIndices;
+
+        // Fill polygon structure with actual data. Any winding order works.
+        // The first polyline defines the main polygon.
+        std::vector<std::array<double, 2>> border;
+        for (const auto &it: polygon) {
+            pointIndices.push_back(it);
+            const auto &v = m_points[it];
+            border.push_back(std::array<double, 2> {v.x(), v.y()});
+        }
+        polygonAndHoles.push_back(border);
+        
+        // Following polylines define holes.
+        auto findHoles = m_polygonHoles.find(polygonIndex);
+        if (findHoles != m_polygonHoles.end()) {
+            for (const auto &h: findHoles->second) {
+                std::vector<std::array<double, 2>> hole;
+                for (const auto &it: m_innerPolygons[h]) {
+                    pointIndices.push_back(it);
+                    const auto &v = m_points[it];
+                    hole.push_back(std::array<double, 2> {v.x(), v.y()});
+                }
+                polygonAndHoles.push_back(border);
+            }
+        }
+
+        // Run tessellation
+        // Returns array of indices that refer to the vertices of the input polygon.
+        // e.g: the index 6 would refer to {25, 75} in this example.
+        // Three subsequent indices form a triangle. Output triangles are clockwise.
+        std::vector<size_t> indices = mapbox::earcut<size_t>(polygonAndHoles);
+        m_triangles.reserve(indices.size() / 3);
+        for (size_t i = 0; i < indices.size(); i += 3) {
+            m_triangles.push_back({
+                pointIndices[indices[i]],
+                pointIndices[indices[i + 1]],
+                pointIndices[indices[i + 2]]
+            });
+        }
+    }
+}
+
+void ReTriangulator::reTriangulate()
+{
     lookupPolylinesFromNeighborMap(*m_neighborMapFrom3);
-    buildInnerPolygonHierarchy();
     buildPolygons();
+    buildPolygonHierarchy();
+    triangulate();
     // TODO:
 }
 
@@ -247,4 +313,8 @@ const std::vector<std::vector<size_t>> &ReTriangulator::polygons() const
     return m_polygons;
 }
 
+const std::vector<std::vector<size_t>> &ReTriangulator::triangles() const
+{
+    return m_triangles;
+}
 

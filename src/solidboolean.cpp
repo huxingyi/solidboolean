@@ -194,23 +194,18 @@ void SolidBoolean::combine()
         );
         reTriangulator.setEdges(it.second.points,
             &it.second.neighborMap);
-        reTriangulator.triangulate();
+        reTriangulator.reTriangulate();
         static size_t polygonIndex = 0;
-        for (const auto &polygon: reTriangulator.polygons()) {
-            std::vector<Vector3> vertices;
-            vertices.push_back((*m_firstMesh->vertices())[triangle[0]]);
-            vertices.push_back((*m_firstMesh->vertices())[triangle[1]]);
-            vertices.push_back((*m_firstMesh->vertices())[triangle[2]]);
-            for (const auto &point: it.second.points)
-                vertices.push_back(point);
-            std::vector<size_t> face;
-            for (const auto &vertex: polygon)
-                face.push_back(vertex);
-            char filename[200];
-            snprintf(filename, sizeof(filename), "debug-polygon-%zu.obj", polygonIndex);
-            exportObject(filename, vertices, {face});
-            ++polygonIndex;
-        }
+        std::vector<Vector3> vertices;
+        vertices.push_back((*m_firstMesh->vertices())[triangle[0]]);
+        vertices.push_back((*m_firstMesh->vertices())[triangle[1]]);
+        vertices.push_back((*m_firstMesh->vertices())[triangle[2]]);
+        for (const auto &point: it.second.points)
+            vertices.push_back(point);
+        char filename[200];
+        snprintf(filename, sizeof(filename), "debug-polygon-%zu.obj", polygonIndex);
+        exportObject(filename, vertices, reTriangulator.triangles());
+        ++polygonIndex;
     }
     
     exportObject("debug-first.obj", *m_firstMesh->vertices(), firstBoundaryTriangles);
