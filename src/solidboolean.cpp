@@ -163,7 +163,6 @@ void SolidBoolean::combine()
                 }
             }
             
-            /*
             {
                 auto &context = secondTriangleIntersectedContext[pair.second];
                 size_t firstPointIndex = 3 + addIntersectedPoint(context, newEdge.first);
@@ -173,8 +172,7 @@ void SolidBoolean::combine()
                     context.neighborMap[secondPointIndex].insert(firstPointIndex);
                 }
             }
-            */
-            
+
             debugFaces.push_back({debugPoints.size(), debugPoints.size() + 1});
             debugPoints.push_back(newEdge.first);
             debugPoints.push_back(newEdge.second);
@@ -183,30 +181,51 @@ void SolidBoolean::combine()
         }
     }
     
-    for (const auto &it: firstTriangleIntersectedContext) {
-        const auto &triangle = (*m_firstMesh->triangles())[it.first];
-        ReTriangulator reTriangulator({
-                (*m_firstMesh->vertices())[triangle[0]],
-                (*m_firstMesh->vertices())[triangle[1]],
-                (*m_firstMesh->vertices())[triangle[2]]
-            }, 
-            (*m_firstMesh->triangleNormals())[it.first]
-        );
-        reTriangulator.setEdges(it.second.points,
-            &it.second.neighborMap);
-        reTriangulator.reTriangulate();
-        static size_t polygonIndex = 0;
-        std::vector<Vector3> vertices;
-        vertices.push_back((*m_firstMesh->vertices())[triangle[0]]);
-        vertices.push_back((*m_firstMesh->vertices())[triangle[1]]);
-        vertices.push_back((*m_firstMesh->vertices())[triangle[2]]);
-        for (const auto &point: it.second.points)
-            vertices.push_back(point);
-        char filename[200];
-        snprintf(filename, sizeof(filename), "debug-polygon-%zu.obj", polygonIndex);
-        exportObject(filename, vertices, reTriangulator.triangles());
-        ++polygonIndex;
-    }
+    std::vector<Vector3> debugVertices;
+    std::vector<std::vector<size_t>> debugTriangles;
+    std::map<PositionKey, size_t> debugPositionMap;
+    
+    auto addDebugPoint = [&](const Vector3 &position) {
+        auto insertResult = debugPositionMap.insert({PositionKey(position), debugVertices.size()});
+        if (insertResult.second) {
+            debugVertices.push_back(position);
+        }
+        return insertResult.first->second;
+    };
+    
+    auto reTriangulate = [&](const std::map<size_t, IntersectedContext> &context,
+            const SolidMesh *mesh) {
+        for (const auto &it: context) {
+            const auto &triangle = (*mesh->triangles())[it.first];
+            ReTriangulator reTriangulator({
+                    (*mesh->vertices())[triangle[0]],
+                    (*mesh->vertices())[triangle[1]],
+                    (*mesh->vertices())[triangle[2]]
+                }, 
+                (*mesh->triangleNormals())[it.first]
+            );
+            reTriangulator.setEdges(it.second.points,
+                &it.second.neighborMap);
+            reTriangulator.reTriangulate();
+            std::vector<size_t> newIndices;
+            newIndices.push_back(addDebugPoint((*mesh->vertices())[triangle[0]]));
+            newIndices.push_back(addDebugPoint((*mesh->vertices())[triangle[1]]));
+            newIndices.push_back(addDebugPoint((*mesh->vertices())[triangle[2]]));
+            for (const auto &point: it.second.points)
+                newIndices.push_back(addDebugPoint(point));
+            for (const auto &triangle: reTriangulator.triangles()) {
+                debugTriangles.push_back({
+                    newIndices[triangle[0]],
+                    newIndices[triangle[1]],
+                    newIndices[triangle[2]]
+                });
+            }
+        }
+    };
+    reTriangulate(firstTriangleIntersectedContext, m_firstMesh);
+    reTriangulate(secondTriangleIntersectedContext, m_secondMesh);
+    
+    exportObject("debug-triangles.obj", debugVertices, debugTriangles);
     
     exportObject("debug-first.obj", *m_firstMesh->vertices(), firstBoundaryTriangles);
     exportObject("debug-second.obj", *m_secondMesh->vertices(), secondBoundaryTriangles);

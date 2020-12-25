@@ -290,6 +290,11 @@ void ReTriangulator::triangulate()
         std::vector<size_t> indices = mapbox::earcut<size_t>(polygonAndHoles);
         m_triangles.reserve(indices.size() / 3);
         for (size_t i = 0; i < indices.size(); i += 3) {
+            std::cout << "Area:" << Vector3::area(
+                    Vector3(m_points[pointIndices[indices[i]]].x(), m_points[pointIndices[indices[i]]].y(), 0.0),
+                    Vector3(m_points[pointIndices[indices[i + 1]]].x(), m_points[pointIndices[indices[i + 1]]].y(), 0.0),
+                    Vector3(m_points[pointIndices[indices[i + 2]]].x(), m_points[pointIndices[indices[i + 2]]].y(), 0.0)
+                ) << std::endl;
             m_triangles.push_back({
                 pointIndices[indices[i]],
                 pointIndices[indices[i + 1]],
