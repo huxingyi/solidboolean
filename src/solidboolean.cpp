@@ -1,7 +1,5 @@
 #include <stdio.h>
-#include <map>
-#include <unordered_map>
-#include <unordered_set>
+#include <queue>
 #include "solidboolean.h"
 #include "tri_tri_intersect.h"
 #include "retriangulator.h"
@@ -119,6 +117,71 @@ void SolidBoolean::exportObject(const char *filename, const std::vector<Vector3>
     fclose(fp);
 }
 
+bool SolidBoolean::buildPolygonsFromEdges(const std::unordered_map<size_t, std::unordered_set<size_t>> &edges,
+        std::vector<std::vector<size_t>> &polygons)
+{
+    std::unordered_set<size_t> visited;
+    for (const auto &edge: edges) {
+        const auto &startEndpoint = edge.first;
+        if (visited.find(startEndpoint) != visited.end())
+            continue;
+        std::queue<size_t> q;
+        q.push(startEndpoint);
+        std::vector<size_t> polyline;
+        while (!q.empty()) {
+            size_t loop = q.front();
+            visited.insert(loop);
+            polyline.push_back(loop);
+            q.pop();
+            auto neighborIt = edges.find(loop);
+            if (neighborIt == edges.end())
+                break;
+            for (const auto &it: neighborIt->second) {
+                if (visited.find(it) == visited.end()) {
+                    q.push(it);
+                    break;
+                }
+            }
+        }
+        if (polyline.size() <= 2) {
+            std::cout << "buildPolygonsFromEdges failed, too short" << std::endl;
+            return false;
+        }
+        
+        auto neighborOfLast = edges.find(polyline.back());
+        if (neighborOfLast->second.find(startEndpoint) == neighborOfLast->second.end()) {
+            std::cout << "buildPolygonsFromEdges failed, could not form a ring" << std::endl;
+            return false;
+        }
+        
+        polygons.push_back(polyline);
+    }
+    
+    return true;
+}
+
+bool SolidBoolean::isPolygonInward(const std::vector<size_t> &polygon, 
+        const std::vector<Vector3> &vertices,
+        const std::vector<Vector3> &triangleNormals, 
+        const std::map<std::pair<size_t, size_t>, size_t> &halfEdges)
+{
+    Vector3 polygonNormal;
+    Vector3 faceNormal;
+    for (size_t i = 0; i < polygon.size(); ++i) {
+        size_t j = (i + 1) % polygon.size();
+        size_t k = (i + 2) % polygon.size();
+        auto edgeIt = halfEdges.find({polygon[i], polygon[j]});
+        if (edgeIt != halfEdges.end())
+            faceNormal += triangleNormals[edgeIt->second];
+        polygonNormal += Vector3::normal(vertices[polygon[i]],
+            vertices[polygon[j]],
+            vertices[polygon[k]]);
+    }
+    polygonNormal.normalize();
+    faceNormal.normalize();
+    return Vector3::dotProduct(polygonNormal, faceNormal) > 0;
+}
+
 void SolidBoolean::combine()
 {
     searchPotentialIntersectedPairs();
@@ -181,20 +244,29 @@ void SolidBoolean::combine()
         }
     }
     
-    std::vector<Vector3> debugVertices;
-    std::vector<std::vector<size_t>> debugTriangles;
-    std::map<PositionKey, size_t> debugPositionMap;
+    std::vector<Vector3> newVertices;
+    std::vector<std::vector<size_t>> newTriangles;
+    std::map<PositionKey, size_t> newPositionMap;
+    std::unordered_map<size_t, std::unordered_set<size_t>> firstEdges;
+    std::unordered_map<size_t, std::unordered_set<size_t>> secondEdges;
+    std::vector<std::vector<size_t>> firstIntersections;
+    std::vector<std::vector<size_t>> secondIntersections;
+    std::vector<Vector3> newTriangleNormals;
+    std::map<std::pair<size_t, size_t>, size_t> firstHalfEdges;
+    std::map<std::pair<size_t, size_t>, size_t> secondHalfEdges;
     
     auto addDebugPoint = [&](const Vector3 &position) {
-        auto insertResult = debugPositionMap.insert({PositionKey(position), debugVertices.size()});
+        auto insertResult = newPositionMap.insert({PositionKey(position), newVertices.size()});
         if (insertResult.second) {
-            debugVertices.push_back(position);
+            newVertices.push_back(position);
         }
         return insertResult.first->second;
     };
     
     auto reTriangulate = [&](const std::map<size_t, IntersectedContext> &context,
-            const SolidMesh *mesh) {
+            const SolidMesh *mesh, 
+            std::unordered_map<size_t, std::unordered_set<size_t>> &edges,
+            std::map<std::pair<size_t, size_t>, size_t> &halfEdges) {
         for (const auto &it: context) {
             const auto &triangle = (*mesh->triangles())[it.first];
             ReTriangulator reTriangulator({
@@ -214,18 +286,45 @@ void SolidBoolean::combine()
             for (const auto &point: it.second.points)
                 newIndices.push_back(addDebugPoint(point));
             for (const auto &triangle: reTriangulator.triangles()) {
-                debugTriangles.push_back({
+                newTriangleNormals.push_back((*mesh->triangleNormals())[it.first]);
+                size_t newInsertedIndex = newTriangles.size();
+                newTriangles.push_back({
                     newIndices[triangle[0]],
                     newIndices[triangle[1]],
                     newIndices[triangle[2]]
                 });
+                const auto &newInsertedTriangle = newTriangles.back();
+                halfEdges.insert({{newInsertedTriangle[0], newInsertedTriangle[1]}, newInsertedIndex});
+                halfEdges.insert({{newInsertedTriangle[1], newInsertedTriangle[2]}, newInsertedIndex});
+                halfEdges.insert({{newInsertedTriangle[2], newInsertedTriangle[0]}, newInsertedIndex});
+            }
+            for (const auto &it: it.second.neighborMap) {
+                auto from = newIndices[it.first];
+                for (const auto &it2: it.second) {
+                    auto to = newIndices[it2];
+                    edges[from].insert(to);
+                    edges[to].insert(from);
+                }
             }
         }
     };
-    reTriangulate(firstTriangleIntersectedContext, m_firstMesh);
-    reTriangulate(secondTriangleIntersectedContext, m_secondMesh);
+    reTriangulate(firstTriangleIntersectedContext, m_firstMesh, firstEdges, firstHalfEdges);
+    reTriangulate(secondTriangleIntersectedContext, m_secondMesh, secondEdges, secondHalfEdges);
+    buildPolygonsFromEdges(firstEdges, firstIntersections);
+    for (const auto &intersection: firstIntersections) {
+        std::cout << "Intersection:";
+        for (const auto &it: intersection)
+            std::cout << it << " ";
+
+        bool inward = isPolygonInward(intersection, 
+            newVertices,
+            newTriangleNormals, 
+            firstHalfEdges);
+        std::cout << " " << (inward ? "inward" : "outward");
+        std::cout << std::endl;
+    }
     
-    exportObject("debug-triangles.obj", debugVertices, debugTriangles);
+    exportObject("debug-triangles.obj", newVertices, newTriangles);
     
     exportObject("debug-first.obj", *m_firstMesh->vertices(), firstBoundaryTriangles);
     exportObject("debug-second.obj", *m_secondMesh->vertices(), secondBoundaryTriangles);
