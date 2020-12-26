@@ -31,19 +31,35 @@ void SolidBoolean::addTriagleToAxisAlignedBoundingBox(const SolidMesh &mesh, con
         box->update((*mesh.vertices())[triangle[i]]);
 }
 
+bool SolidBoolean::isTriangleInMesh(const SolidMesh *triangleMesh, 
+    const SolidMesh *targetMesh,
+    size_t triangleIndex, 
+    const std::vector<AxisAlignedBoudingBox> *boxes, 
+    AxisAlignedBoudingBoxTree *meshBoxTree)
+{
+    bool inside = false;
+    
+    AxisAlignedBoudingBoxTree testTree(boxes,
+        {triangleIndex},
+        (*boxes)[triangleIndex]);
+    std::vector<std::pair<size_t, size_t>> *pairs = meshBoxTree->test(meshBoxTree->root(), testTree.root(), boxes);
+    // TODO:
+    delete pairs;
+    
+    return inside;
+}
+
 void SolidBoolean::searchPotentialIntersectedPairs()
 {
-    std::vector<AxisAlignedBoudingBox> firstMeshFaceAABBs;
-    std::vector<AxisAlignedBoudingBox> secondMeshFaceAABBs;
-    firstMeshFaceAABBs.resize(m_firstMesh->triangles()->size());
-    secondMeshFaceAABBs.resize(m_secondMesh->triangles()->size());
-    for (size_t i = 0; i < firstMeshFaceAABBs.size(); ++i) {
-        addTriagleToAxisAlignedBoundingBox(*m_firstMesh, (*m_firstMesh->triangles())[i], &firstMeshFaceAABBs[i]);
-        firstMeshFaceAABBs[i].updateCenter();
+    m_firstMeshFaceAABBs.resize(m_firstMesh->triangles()->size());
+    m_secondMeshFaceAABBs.resize(m_secondMesh->triangles()->size());
+    for (size_t i = 0; i < m_firstMeshFaceAABBs.size(); ++i) {
+        addTriagleToAxisAlignedBoundingBox(*m_firstMesh, (*m_firstMesh->triangles())[i], &m_firstMeshFaceAABBs[i]);
+        m_firstMeshFaceAABBs[i].updateCenter();
     }
-    for (size_t i = 0; i < secondMeshFaceAABBs.size(); ++i) {
-        addTriagleToAxisAlignedBoundingBox(*m_secondMesh, (*m_secondMesh->triangles())[i], &secondMeshFaceAABBs[i]);
-        secondMeshFaceAABBs[i].updateCenter();
+    for (size_t i = 0; i < m_secondMeshFaceAABBs.size(); ++i) {
+        addTriagleToAxisAlignedBoundingBox(*m_secondMesh, (*m_secondMesh->triangles())[i], &m_secondMeshFaceAABBs[i]);
+        m_secondMeshFaceAABBs[i].updateCenter();
     }
     
     AxisAlignedBoudingBox firstBox;
@@ -54,13 +70,13 @@ void SolidBoolean::searchPotentialIntersectedPairs()
     firstBox.intersectWithAt(secondBox, &intersectedBox);
     std::vector<size_t> firstGroupOfFacesIn;
     std::vector<size_t> secondGroupOfFacesIn;
-    for (size_t i = 0; i < firstMeshFaceAABBs.size(); ++i) {
-        if (intersectedBox.intersectWith(firstMeshFaceAABBs[i])) {
+    for (size_t i = 0; i < m_firstMeshFaceAABBs.size(); ++i) {
+        if (intersectedBox.intersectWith(m_firstMeshFaceAABBs[i])) {
             firstGroupOfFacesIn.push_back(i);
         }
     }
-    for (size_t i = 0; i < secondMeshFaceAABBs.size(); ++i) {
-        if (intersectedBox.intersectWith(secondMeshFaceAABBs[i])) {
+    for (size_t i = 0; i < m_secondMeshFaceAABBs.size(); ++i) {
+        if (intersectedBox.intersectWith(m_secondMeshFaceAABBs[i])) {
             secondGroupOfFacesIn.push_back(i);
         }
     }
@@ -77,13 +93,13 @@ void SolidBoolean::searchPotentialIntersectedPairs()
     }
     secondGroupBox.updateCenter();
     
-    m_leftTree = new AxisAlignedBoudingBoxTree(&firstMeshFaceAABBs, firstGroupOfFacesIn, firstGroupBox);
-    m_rightTree = new AxisAlignedBoudingBoxTree(&secondMeshFaceAABBs, secondGroupOfFacesIn, secondGroupBox);
+    m_leftTree = new AxisAlignedBoudingBoxTree(&m_firstMeshFaceAABBs, firstGroupOfFacesIn, firstGroupBox);
+    m_rightTree = new AxisAlignedBoudingBoxTree(&m_secondMeshFaceAABBs, secondGroupOfFacesIn, secondGroupBox);
     
-    m_potentialIntersectedPairs = m_leftTree->test(m_leftTree->root(), m_rightTree->root(), &secondMeshFaceAABBs);
+    m_potentialIntersectedPairs = m_leftTree->test(m_leftTree->root(), m_rightTree->root(), &m_secondMeshFaceAABBs);
     
-    m_leftTree->exportObject("debug-lefttree.obj");
-    m_rightTree->exportObject("debug-righttree.obj");
+    //m_leftTree->exportObject("debug-lefttree.obj");
+    //m_rightTree->exportObject("debug-righttree.obj");
 }
 
 bool SolidBoolean::intersectTwoFaces(size_t firstIndex, size_t secondIndex, std::pair<Vector3, Vector3> &newEdge)
@@ -165,26 +181,59 @@ bool SolidBoolean::buildPolygonsFromEdges(const std::unordered_map<size_t, std::
     return true;
 }
 
-bool SolidBoolean::isPolygonInward(const std::vector<size_t> &polygon, 
-        const std::vector<Vector3> &vertices,
-        const std::vector<Vector3> &triangleNormals, 
-        const std::map<std::pair<size_t, size_t>, size_t> &halfEdges)
+void SolidBoolean::buildFaceGroups(const std::vector<std::vector<size_t>> &intersections,
+        const std::map<std::pair<size_t, size_t>, size_t> &halfEdges,
+        const std::vector<std::vector<size_t>> &triangles,
+        std::vector<std::vector<size_t>> &triangleGroups)
 {
-    Vector3 polygonNormal;
-    Vector3 faceNormal;
-    for (size_t i = 0; i < polygon.size(); ++i) {
-        size_t j = (i + 1) % polygon.size();
-        size_t k = (i + 2) % polygon.size();
-        auto edgeIt = halfEdges.find({polygon[i], polygon[j]});
-        if (edgeIt != halfEdges.end())
-            faceNormal += triangleNormals[edgeIt->second];
-        polygonNormal += Vector3::normal(vertices[polygon[i]],
-            vertices[polygon[j]],
-            vertices[polygon[k]]);
+    std::map<std::pair<size_t, size_t>, size_t> halfEdgeGroupMap;
+    size_t groupIndex = 0;
+    std::queue<std::pair<size_t, size_t>> q;
+    for (const auto &intersection: intersections) {
+        for (size_t i = 0; i < intersection.size(); ++i) {
+            size_t j = (i + 1) % intersection.size();
+            {
+                std::pair<size_t, size_t> halfEdge = {intersection[i], intersection[j]};
+                halfEdgeGroupMap.insert({halfEdge, groupIndex});
+                auto halfEdgeIt = halfEdges.find(halfEdge);
+                if (halfEdgeIt != halfEdges.end()) {
+                    q.push({halfEdgeIt->second, groupIndex});
+                }
+            }
+            {
+                std::pair<size_t, size_t> halfEdge = {intersection[j], intersection[i]};
+                halfEdgeGroupMap.insert({halfEdge, groupIndex + 1});
+                auto halfEdgeIt = halfEdges.find(halfEdge);
+                if (halfEdgeIt != halfEdges.end()) {
+                    q.push({halfEdgeIt->second, groupIndex + 1});
+                }
+            }
+        }
+        groupIndex += 2;
     }
-    polygonNormal.normalize();
-    faceNormal.normalize();
-    return Vector3::dotProduct(polygonNormal, faceNormal) > 0;
+    
+    triangleGroups.resize(groupIndex);
+    std::unordered_set<size_t> visitedTriangles;
+    while (!q.empty()) {
+        auto triangleAndGroupIndex = q.front();
+        q.pop();
+        if (visitedTriangles.find(triangleAndGroupIndex.first) != visitedTriangles.end())
+            continue;
+        visitedTriangles.insert(triangleAndGroupIndex.first);
+        triangleGroups[triangleAndGroupIndex.second].push_back(triangleAndGroupIndex.first);
+        const auto &indicies = triangles[triangleAndGroupIndex.first];
+        for (size_t i = 0; i < 3; ++i) {
+            size_t j = (i + 1) % 3;
+            std::pair<size_t, size_t> halfEdge = {indicies[i], indicies[j]};
+            if (halfEdgeGroupMap.find(halfEdge) != halfEdgeGroupMap.end())
+                continue;
+            halfEdgeGroupMap.insert({halfEdge, triangleAndGroupIndex.second});
+            auto halfEdgeIt = halfEdges.find({halfEdge.second, halfEdge.first});
+            if (halfEdgeIt != halfEdges.end()) {
+                q.push({halfEdgeIt->second, triangleAndGroupIndex.second});
+            }
+        }
+    }
 }
 
 void SolidBoolean::combine()
@@ -316,35 +365,33 @@ void SolidBoolean::combine()
     reTriangulate(firstTriangleIntersectedContext, m_firstMesh, firstEdges, firstHalfEdges);
     reTriangulate(secondTriangleIntersectedContext, m_secondMesh, secondEdges, secondHalfEdges);
     buildPolygonsFromEdges(firstEdges, firstIntersections);
-    std::unordered_map<size_t, int> firstTriangleOrientations;
-    for (const auto &intersection: firstIntersections) {
-        std::cout << "Intersection:";
-        for (const auto &it: intersection)
-            std::cout << it << " ";
-
-        bool inward = isPolygonInward(intersection, 
-            newVertices,
-            newTriangleNormals, 
-            firstHalfEdges);
-        int orientation = inward ? 1 : -1;
-        for (size_t i = 0; i < intersection.size(); ++i) {
-            size_t j = (i + 1) % intersection.size();
-            {
-                auto edgeIt = firstHalfEdges.find({intersection[i], intersection[j]});
-                if (edgeIt != firstHalfEdges.end()) {
-                    firstTriangleOrientations.insert({edgeIt->second, orientation});
-                }
-            }
-            {
-                auto edgeIt = firstHalfEdges.find({intersection[j], intersection[i]});
-                if (edgeIt != firstHalfEdges.end()) {
-                    firstTriangleOrientations.insert({edgeIt->second, -orientation});
-                }
-            }
-        }
-            
-        std::cout << " " << (inward ? "inward" : "outward");
-        std::cout << std::endl;
+    
+    //for (const auto &intersection: firstIntersections) {
+    //    std::cout << "Intersection:";
+    //    for (const auto &it: intersection)
+    //        std::cout << it << " ";
+    //    std::cout << std::endl;
+    //}
+    
+    std::vector<std::vector<size_t>> triangleGroups;
+    buildFaceGroups(firstIntersections,
+        firstHalfEdges,
+        newTriangles,
+        triangleGroups);
+    size_t groupIndex = 0;
+    for (size_t i = 0; i < triangleGroups.size(); ++i) {
+        const auto &group = triangleGroups[i];
+        if (group.empty())
+            continue;
+        //std::cout << "Group[" << groupIndex << "]:";
+        //std::cout << std::endl;
+        std::vector<std::vector<size_t>> groupTriangles;
+        for (const auto &it: group)
+            groupTriangles.push_back(newTriangles[it]);
+        char filename[200];
+        sprintf(filename, "debug-group-%zu.obj", groupIndex);
+        exportObject(filename, newVertices, groupTriangles);
+        ++groupIndex;
     }
     
     exportObject("debug-triangles.obj", newVertices, newTriangles);

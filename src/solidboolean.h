@@ -21,6 +21,8 @@ private:
     AxisAlignedBoudingBoxTree *m_leftTree = nullptr;
     AxisAlignedBoudingBoxTree *m_rightTree = nullptr;
     std::vector<std::pair<size_t, size_t>> *m_potentialIntersectedPairs = nullptr;
+    std::vector<AxisAlignedBoudingBox> m_firstMeshFaceAABBs;
+    std::vector<AxisAlignedBoudingBox> m_secondMeshFaceAABBs;
     
     void addMeshToAxisAlignedBoundingBox(const SolidMesh &mesh, AxisAlignedBoudingBox *box);
     void addTriagleToAxisAlignedBoundingBox(const SolidMesh &mesh, const std::vector<size_t> &triangle, AxisAlignedBoudingBox *box);
@@ -28,10 +30,15 @@ private:
     bool intersectTwoFaces(size_t firstIndex, size_t secondIndex, std::pair<Vector3, Vector3> &newEdge);
     bool buildPolygonsFromEdges(const std::unordered_map<size_t, std::unordered_set<size_t>> &edges,
         std::vector<std::vector<size_t>> &polygons);
-    bool isPolygonInward(const std::vector<size_t> &polygon, 
-        const std::vector<Vector3> &vertices,
-        const std::vector<Vector3> &triangleNormals, 
-        const std::map<std::pair<size_t, size_t>, size_t> &halfEdges);
+    bool isTriangleInMesh(const SolidMesh *triangleMesh, 
+        const SolidMesh *targetMesh,
+        size_t triangleIndex, 
+        const std::vector<AxisAlignedBoudingBox> *boxes, 
+        AxisAlignedBoudingBoxTree *meshBoxTree);
+    void buildFaceGroups(const std::vector<std::vector<size_t>> &intersections,
+        const std::map<std::pair<size_t, size_t>, size_t> &halfEdges,
+        const std::vector<std::vector<size_t>> &triangles,
+        std::vector<std::vector<size_t>> &triangleGroups);
     
     void exportObject(const char *filename, const std::vector<Vector3> &vertices, const std::vector<std::vector<size_t>> &faces);
 };

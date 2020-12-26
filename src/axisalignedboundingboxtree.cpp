@@ -31,6 +31,7 @@ AxisAlignedBoudingBoxTree::~AxisAlignedBoudingBoxTree()
     delete m_testPairs;
 }
 
+/*
 void AxisAlignedBoudingBoxTree::collectNodeBoxMesh(const Node *node, std::vector<Vector3> &vertices, 
     std::vector<std::vector<size_t>> &faces) const
 {
@@ -92,6 +93,7 @@ void AxisAlignedBoudingBoxTree::exportObject(const char *filename) const
     }
     fclose(fp);
 }
+*/
 
 void AxisAlignedBoudingBoxTree::testNodes(const Node *first, const Node *second)
 {

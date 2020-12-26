@@ -31,15 +31,15 @@ public:
     std::vector<std::pair<size_t, size_t>> *test(const Node *first, const Node *second,
         const std::vector<AxisAlignedBoudingBox> *secondBoxes);
         
-    void exportObject(const char *filename) const;
+    //void exportObject(const char *filename) const;
 private:
     const std::vector<AxisAlignedBoudingBox> *m_boxes = nullptr;
     const std::vector<AxisAlignedBoudingBox> *m_secondBoxes = nullptr;
     Node *m_root = nullptr;
     std::vector<std::pair<size_t, size_t>> *m_testPairs = nullptr;
     
-    void collectNodeBoxMesh(const Node *node, std::vector<Vector3> &vertices, 
-        std::vector<std::vector<size_t>> &faces) const;
+    //void collectNodeBoxMesh(const Node *node, std::vector<Vector3> &vertices, 
+    //    std::vector<std::vector<size_t>> &faces) const;
 };
 
 #endif
