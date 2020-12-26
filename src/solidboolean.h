@@ -30,11 +30,11 @@ private:
     bool intersectTwoFaces(size_t firstIndex, size_t secondIndex, std::pair<Vector3, Vector3> &newEdge);
     bool buildPolygonsFromEdges(const std::unordered_map<size_t, std::unordered_set<size_t>> &edges,
         std::vector<std::vector<size_t>> &polygons);
-    bool isTriangleInMesh(const SolidMesh *triangleMesh, 
+    bool isPointInMesh(const Vector3 &testPosition, 
         const SolidMesh *targetMesh,
-        size_t triangleIndex, 
-        const std::vector<AxisAlignedBoudingBox> *boxes, 
-        AxisAlignedBoudingBoxTree *meshBoxTree);
+        AxisAlignedBoudingBoxTree *meshBoxTree,
+        const Vector3 &testAxis,
+        const char *debugName=nullptr);
     void buildFaceGroups(const std::vector<std::vector<size_t>> &intersections,
         const std::map<std::pair<size_t, size_t>, size_t> &halfEdges,
         const std::vector<std::vector<size_t>> &triangles,

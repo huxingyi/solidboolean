@@ -240,6 +240,51 @@ public:
         return Vector3(alpha, beta, 1.0 - alpha - beta);
     }
     
+    inline static bool intersectSegmentAndPlane(const Vector3 &segmentPoint0, const Vector3 &segmentPoint1,
+        const Vector3 &pointOnPlane, const Vector3 &planeNormal,
+        Vector3 *intersection)
+    {
+        auto u = segmentPoint1 - segmentPoint0;
+        auto w = segmentPoint0 - pointOnPlane;
+        auto d = Vector3::dotProduct(planeNormal, u);
+        auto n = Vector3::dotProduct(-planeNormal, w);
+        if (std::abs(d) <= std::numeric_limits<double>::epsilon())
+            return false;
+        auto s = n / d;
+        if (s < 0 || s > 1 || std::isnan(s) || std::isinf(s))
+            return false;
+        if (nullptr != intersection)
+            *intersection = segmentPoint0 + s * u;
+        return true;
+    }
+
+    inline static bool intersectSegmentAndTriangle(const Vector3 &segmentPoint0, const Vector3 &segmentPoint1,
+        const std::vector<Vector3> &triangle,
+        const Vector3 &triangleNormal,
+        Vector3 *intersection)
+    {
+        Vector3 possibleIntersection;
+        if (!intersectSegmentAndPlane(segmentPoint0, segmentPoint1,
+                triangle[0], triangleNormal, &possibleIntersection)) {
+            return false;
+        }
+        auto ray = (segmentPoint0 - segmentPoint1).normalized();
+        std::vector<Vector3> normals;
+        for (size_t i = 0; i < 3; ++i) {
+            size_t j = (i + 1) % 3;
+            normals.push_back(Vector3::normal(possibleIntersection, triangle[i], triangle[j]));
+        }
+        if (Vector3::dotProduct(normals[0], ray) <= 0)
+            return false;
+        if (Vector3::dotProduct(normals[0], normals[1]) <= 0)
+            return false;
+        if (Vector3::dotProduct(normals[0], normals[2]) <= 0)
+            return false;
+        if (nullptr != intersection)
+            *intersection = possibleIntersection;
+        return true;
+    }
+    
 private:
     double m_data[3] = {0.0};
 };

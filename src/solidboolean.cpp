@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <queue>
+#include <set>
 #include "solidboolean.h"
 #include "tri_tri_intersect.h"
 #include "retriangulator.h"
@@ -31,20 +32,63 @@ void SolidBoolean::addTriagleToAxisAlignedBoundingBox(const SolidMesh &mesh, con
         box->update((*mesh.vertices())[triangle[i]]);
 }
 
-bool SolidBoolean::isTriangleInMesh(const SolidMesh *triangleMesh, 
+bool SolidBoolean::isPointInMesh(const Vector3 &testPosition, 
     const SolidMesh *targetMesh,
-    size_t triangleIndex, 
-    const std::vector<AxisAlignedBoudingBox> *boxes, 
-    AxisAlignedBoudingBoxTree *meshBoxTree)
+    AxisAlignedBoudingBoxTree *meshBoxTree,
+    const Vector3 &testAxis,
+    const char *debugName)
 {
+    Vector3 testEnd = testPosition + testAxis;
     bool inside = false;
+    std::vector<AxisAlignedBoudingBox> rayBox(1);
+    auto &box = rayBox[0];
+    box.update(testPosition);
+    box.update(testEnd);
+    AxisAlignedBoudingBoxTree testTree(&rayBox,
+        {0},
+        rayBox[0]);
+    std::vector<std::pair<size_t, size_t>> *pairs = meshBoxTree->test(meshBoxTree->root(), testTree.root(), &rayBox);
+    std::set<PositionKey> hits;
     
-    AxisAlignedBoudingBoxTree testTree(boxes,
-        {triangleIndex},
-        (*boxes)[triangleIndex]);
-    std::vector<std::pair<size_t, size_t>> *pairs = meshBoxTree->test(meshBoxTree->root(), testTree.root(), boxes);
-    // TODO:
+    std::vector<Vector3> debugVertices;
+    std::vector<std::vector<size_t>> debugLines;
+    
+    //std::cout << "=====================" << std::endl;
+    for (const auto &it: *pairs) {
+        //std::cout << "Test pair:" << it.first << "~" << it.second;
+        const auto &triangle = (*targetMesh->triangles())[it.first];
+        std::vector<Vector3> trianglePositions = {
+            (*targetMesh->vertices())[triangle[0]],
+            (*targetMesh->vertices())[triangle[1]],
+            (*targetMesh->vertices())[triangle[2]]
+        };
+        Vector3 intersection;
+        if (Vector3::intersectSegmentAndPlane(testPosition, testEnd,
+                trianglePositions[0], 
+                (*targetMesh->triangleNormals())[it.first],
+                &intersection)) {
+            std::vector<Vector3> normals;
+            for (size_t i = 0; i < 3; ++i) {
+                size_t j = (i + 1) % 3;
+                normals.push_back(Vector3::normal(intersection, trianglePositions[i], trianglePositions[j]));
+            }
+            if (Vector3::dotProduct(normals[0], normals[1]) > 0 == Vector3::dotProduct(normals[0], normals[2]) > 0) {
+                debugLines.push_back({debugVertices.size(), debugVertices.size() + 1});
+                debugVertices.push_back(testPosition);
+                debugVertices.push_back(intersection);
+                
+                hits.insert(PositionKey(intersection));
+                //std::cout << " hits[" << hits.size() << "]: intersection:" << intersection;
+            }
+        }
+        //std::cout << std::endl;
+    }
+    inside = 0 != hits.size() % 2;
     delete pairs;
+    
+    if (nullptr != debugName) {
+        exportObject(debugName, debugVertices, debugLines);
+    }
     
     return inside;
 }
@@ -71,14 +115,14 @@ void SolidBoolean::searchPotentialIntersectedPairs()
     std::vector<size_t> firstGroupOfFacesIn;
     std::vector<size_t> secondGroupOfFacesIn;
     for (size_t i = 0; i < m_firstMeshFaceAABBs.size(); ++i) {
-        if (intersectedBox.intersectWith(m_firstMeshFaceAABBs[i])) {
+        //if (intersectedBox.intersectWith(m_firstMeshFaceAABBs[i])) {
             firstGroupOfFacesIn.push_back(i);
-        }
+        //}
     }
     for (size_t i = 0; i < m_secondMeshFaceAABBs.size(); ++i) {
-        if (intersectedBox.intersectWith(m_secondMeshFaceAABBs[i])) {
+        //if (intersectedBox.intersectWith(m_secondMeshFaceAABBs[i])) {
             secondGroupOfFacesIn.push_back(i);
-        }
+        //}
     }
 
     AxisAlignedBoudingBox firstGroupBox;
@@ -130,6 +174,13 @@ void SolidBoolean::exportObject(const char *filename, const std::vector<Vector3>
         fprintf(fp, "v %f %f %f\n", it.x(), it.y(), it.z());
     }
     for (const auto &it: faces) {
+        if (it.size() == 2) {
+            fprintf(fp, "l");
+            for (const auto &v: it)
+                fprintf(fp, " %zu", v + 1);
+            fprintf(fp, "\n");
+            continue;
+        }
         fprintf(fp, "f");
         for (const auto &v: it)
             fprintf(fp, " %zu", v + 1);
@@ -267,9 +318,14 @@ void SolidBoolean::combine()
         return insertResult.first->second;
     };
     
+    std::unordered_set<size_t> firstIntersectedFaces;
+    std::unordered_set<size_t> secondIntersectedFaces;
     for (const auto &pair: *m_potentialIntersectedPairs) {
         std::pair<Vector3, Vector3> newEdge;
         if (intersectTwoFaces(pair.first, pair.second, newEdge)) {
+            firstIntersectedFaces.insert(pair.first);
+            secondIntersectedFaces.insert(pair.second);
+            
             {
                 auto &context = firstTriangleIntersectedContext[pair.first];
                 size_t firstPointIndex = 3 + addIntersectedPoint(context, newEdge.first);
@@ -305,11 +361,11 @@ void SolidBoolean::combine()
     std::unordered_map<size_t, std::unordered_set<size_t>> secondEdges;
     std::vector<std::vector<size_t>> firstIntersections;
     std::vector<std::vector<size_t>> secondIntersections;
-    std::vector<Vector3> newTriangleNormals;
+    //std::vector<Vector3> newTriangleNormals;
     std::map<std::pair<size_t, size_t>, size_t> firstHalfEdges;
     std::map<std::pair<size_t, size_t>, size_t> secondHalfEdges;
     
-    auto addDebugPoint = [&](const Vector3 &position) {
+    auto addNewPoint = [&](const Vector3 &position) {
         auto insertResult = newPositionMap.insert({PositionKey(position), newVertices.size()});
         if (insertResult.second) {
             newVertices.push_back(position);
@@ -334,13 +390,13 @@ void SolidBoolean::combine()
                 &it.second.neighborMap);
             reTriangulator.reTriangulate();
             std::vector<size_t> newIndices;
-            newIndices.push_back(addDebugPoint((*mesh->vertices())[triangle[0]]));
-            newIndices.push_back(addDebugPoint((*mesh->vertices())[triangle[1]]));
-            newIndices.push_back(addDebugPoint((*mesh->vertices())[triangle[2]]));
+            newIndices.push_back(addNewPoint((*mesh->vertices())[triangle[0]]));
+            newIndices.push_back(addNewPoint((*mesh->vertices())[triangle[1]]));
+            newIndices.push_back(addNewPoint((*mesh->vertices())[triangle[2]]));
             for (const auto &point: it.second.points)
-                newIndices.push_back(addDebugPoint(point));
+                newIndices.push_back(addNewPoint(point));
             for (const auto &triangle: reTriangulator.triangles()) {
-                newTriangleNormals.push_back((*mesh->triangleNormals())[it.first]);
+                //newTriangleNormals.push_back((*mesh->triangleNormals())[it.first]);
                 size_t newInsertedIndex = newTriangles.size();
                 newTriangles.push_back({
                     newIndices[triangle[0]],
@@ -366,25 +422,63 @@ void SolidBoolean::combine()
     reTriangulate(secondTriangleIntersectedContext, m_secondMesh, secondEdges, secondHalfEdges);
     buildPolygonsFromEdges(firstEdges, firstIntersections);
     
-    //for (const auto &intersection: firstIntersections) {
-    //    std::cout << "Intersection:";
-    //    for (const auto &it: intersection)
-    //        std::cout << it << " ";
-    //    std::cout << std::endl;
-    //}
-    
+    size_t firstTriangleCount = m_firstMesh->triangles()->size();
+    for (size_t i = 0; i < firstTriangleCount; ++i) {
+        if (firstIntersectedFaces.find(i) != firstIntersectedFaces.end())
+            continue;
+        const auto &oldTriangle = (*m_firstMesh->triangles())[i];
+        size_t newInsertedIndex = newTriangles.size();
+        newTriangles.push_back({
+            addNewPoint((*m_firstMesh->vertices())[oldTriangle[0]]),
+            addNewPoint((*m_firstMesh->vertices())[oldTriangle[1]]),
+            addNewPoint((*m_firstMesh->vertices())[oldTriangle[2]])
+        });
+        const auto &newInsertedTriangle = newTriangles.back();
+        firstHalfEdges.insert({{newInsertedTriangle[0], newInsertedTriangle[1]}, newInsertedIndex});
+        firstHalfEdges.insert({{newInsertedTriangle[1], newInsertedTriangle[2]}, newInsertedIndex});
+        firstHalfEdges.insert({{newInsertedTriangle[2], newInsertedTriangle[0]}, newInsertedIndex});
+    }
+
     std::vector<std::vector<size_t>> triangleGroups;
     buildFaceGroups(firstIntersections,
         firstHalfEdges,
         newTriangles,
         triangleGroups);
+    
+    std::vector<Vector3> testAxisList = {
+        {std::numeric_limits<double>::max(), std::numeric_limits<double>::epsilon(), std::numeric_limits<double>::epsilon()},
+        {std::numeric_limits<double>::epsilon(), std::numeric_limits<double>::max(), std::numeric_limits<double>::epsilon()},
+        {std::numeric_limits<double>::epsilon(), std::numeric_limits<double>::epsilon(), std::numeric_limits<double>::max()},
+    };
     size_t groupIndex = 0;
     for (size_t i = 0; i < triangleGroups.size(); ++i) {
         const auto &group = triangleGroups[i];
         if (group.empty())
             continue;
-        //std::cout << "Group[" << groupIndex << "]:";
-        //std::cout << std::endl;
+        size_t insideCount = 0;
+        size_t totalCount = 0;
+        for (size_t pickIndex = 0; pickIndex < 6 && pickIndex < group.size(); ++pickIndex) {
+            for (size_t axisIndex = 0; axisIndex < testAxisList.size(); ++axisIndex) {
+                //char debugName[200];
+                //sprintf(debugName, "debug-line-group%zu-axis-%zu.obj", groupIndex, axisIndex);
+                const auto &pickedTriangle = newTriangles[group[pickIndex]];
+                bool inside = isPointInMesh((newVertices[pickedTriangle[0]] +
+                        newVertices[pickedTriangle[1]] +
+                        newVertices[pickedTriangle[2]]) / 3.0, 
+                    m_secondMesh,
+                    m_rightTree,
+                    testAxisList[axisIndex],
+                    nullptr); //debugName);
+                if (inside)
+                    ++insideCount;
+                ++totalCount;
+            }
+        }
+        
+        std::cout << "Group[" << groupIndex << "]:";
+        std::cout << "Decide on " << insideCount << " result:" << (((float)insideCount / totalCount > 0.5) ? "inside" : "outside");
+        std::cout << std::endl;
+        
         std::vector<std::vector<size_t>> groupTriangles;
         for (const auto &it: group)
             groupTriangles.push_back(newTriangles[it]);
