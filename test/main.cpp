@@ -69,7 +69,10 @@ int main(int argc, char ** argv)
     secondMesh.calculateTriangleNormals();
     
     SolidBoolean solidBoolean(&firstMesh, &secondMesh);
-    solidBoolean.combine();
+    solidBoolean.doIntersect();
+    
+    SolidBoolean::exportObject("do-intersect.obj", 
+        solidBoolean.resultVertices(), solidBoolean.resultTriangles());
     
     return 0;
 }

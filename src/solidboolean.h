@@ -7,6 +7,7 @@
 #include "solidmesh.h"
 #include "axisalignedboundingboxtree.h"
 #include "axisalignedboundingbox.h"
+#include "positionkey.h"
 
 class SolidBoolean
 {
@@ -14,7 +15,13 @@ public:
     SolidBoolean(const SolidMesh *firstMesh,
         const SolidMesh *secondMesh);
     ~SolidBoolean();
-    void combine();
+    void doUnion();
+    void doDiff();
+    void doIntersect();
+    const std::vector<Vector3> &resultVertices();
+    const std::vector<std::vector<size_t>> &resultTriangles();
+    
+    static void exportObject(const char *filename, const std::vector<Vector3> &vertices, const std::vector<std::vector<size_t>> &faces);
 private:
     const SolidMesh *m_firstMesh = nullptr;
     const SolidMesh *m_secondMesh = nullptr;
@@ -23,6 +30,14 @@ private:
     std::vector<std::pair<size_t, size_t>> *m_potentialIntersectedPairs = nullptr;
     std::vector<AxisAlignedBoudingBox> m_firstMeshFaceAABBs;
     std::vector<AxisAlignedBoudingBox> m_secondMeshFaceAABBs;
+    std::vector<Vector3> m_newVertices;
+    std::vector<std::vector<size_t>> m_newTriangles;
+    std::map<PositionKey, size_t> m_newPositionMap;
+    std::vector<std::vector<size_t>> m_firstTriangleGroups;
+    std::vector<std::vector<size_t>> m_secondTriangleGroups;
+    std::vector<bool> m_firstGroupSides;
+    std::vector<bool> m_secondGroupSides;
+    std::vector<std::vector<size_t>> m_resultTriangles;
     
     void addMeshToAxisAlignedBoundingBox(const SolidMesh &mesh, AxisAlignedBoudingBox *box);
     void addTriagleToAxisAlignedBoundingBox(const SolidMesh &mesh, const std::vector<size_t> &triangle, AxisAlignedBoudingBox *box);
@@ -39,8 +54,15 @@ private:
         const std::map<std::pair<size_t, size_t>, size_t> &halfEdges,
         const std::vector<std::vector<size_t>> &triangles,
         std::vector<std::vector<size_t>> &triangleGroups);
-    
-    void exportObject(const char *filename, const std::vector<Vector3> &vertices, const std::vector<std::vector<size_t>> &faces);
+    size_t addNewPoint(const Vector3 &position);
+    void addRemainingTriangles(const SolidMesh *mesh, 
+        const std::unordered_set<size_t> &usedFaces,
+        std::map<std::pair<size_t, size_t>, size_t> &halfEdges);
+    void decideGroupSide(const std::vector<std::vector<size_t>> &groups,
+        const SolidMesh *mesh,
+        AxisAlignedBoudingBoxTree *tree,
+        std::vector<bool> &groupSides);
+    void combine();
 };
 
 #endif
