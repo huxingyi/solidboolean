@@ -15,11 +15,12 @@ public:
     SolidBoolean(const SolidMesh *firstMesh,
         const SolidMesh *secondMesh);
     ~SolidBoolean();
-    void doUnion();
-    void doDiff();
-    void doIntersect();
+    void combine();
+    void fetchUnion(std::vector<std::vector<size_t>> &resultTriangles);
+    void fetchDiff(std::vector<std::vector<size_t>> &resultTriangles);
+    void fetchIntersect(std::vector<std::vector<size_t>> &resultTriangles);
+    
     const std::vector<Vector3> &resultVertices();
-    const std::vector<std::vector<size_t>> &resultTriangles();
     
     static void exportObject(const char *filename, const std::vector<Vector3> &vertices, const std::vector<std::vector<size_t>> &faces);
 private:
@@ -37,7 +38,6 @@ private:
     std::vector<std::vector<size_t>> m_secondTriangleGroups;
     std::vector<bool> m_firstGroupSides;
     std::vector<bool> m_secondGroupSides;
-    std::vector<std::vector<size_t>> m_resultTriangles;
     
     void addMeshToAxisAlignedBoundingBox(const SolidMesh &mesh, AxisAlignedBoudingBox *box);
     void addTriagleToAxisAlignedBoundingBox(const SolidMesh &mesh, const std::vector<size_t> &triangle, AxisAlignedBoudingBox *box);
@@ -62,7 +62,6 @@ private:
         const SolidMesh *mesh,
         AxisAlignedBoudingBoxTree *tree,
         std::vector<bool> &groupSides);
-    void combine();
 };
 
 #endif

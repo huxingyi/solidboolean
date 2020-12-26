@@ -55,8 +55,8 @@ int main(int argc, char ** argv)
     std::vector<Vector3> secondVertices; 
     std::vector<std::vector<size_t>> secondTriangles;
     
-    loadObj("../../cases/addax-and-meerkat/a.obj", firstVertices, firstTriangles);
-    loadObj("../../cases/addax-and-meerkat/b.obj", secondVertices, secondTriangles);
+    loadObj("../../cases/complex/a.obj", firstVertices, firstTriangles);
+    loadObj("../../cases/complex/b.obj", secondVertices, secondTriangles);
     
     SolidMesh firstMesh;
     firstMesh.setVertices(&firstVertices);
@@ -69,10 +69,45 @@ int main(int argc, char ** argv)
     secondMesh.calculateTriangleNormals();
     
     SolidBoolean solidBoolean(&firstMesh, &secondMesh);
-    solidBoolean.doIntersect();
+    solidBoolean.combine();
     
-    SolidBoolean::exportObject("do-intersect.obj", 
-        solidBoolean.resultVertices(), solidBoolean.resultTriangles());
+    std::vector<Vector3> mergedVertices;
+    std::vector<std::vector<size_t>> mergedTriangles;
+    
+    auto mergeMesh = [&](const std::vector<Vector3> &vertices, 
+            const std::vector<std::vector<size_t>> &triangles,
+            const Vector3 &offset) {
+        size_t oldSize = mergedVertices.size();
+        for (const auto &it: triangles) {
+            mergedTriangles.push_back({
+                it[0] + oldSize,
+                it[1] + oldSize,
+                it[2] + oldSize
+            });
+        }
+        for (const auto &it: vertices) {
+            mergedVertices.push_back(it + offset);
+        }
+    };
+    
+    {
+        std::vector<std::vector<size_t>> resultTriangles;
+        solidBoolean.fetchUnion(resultTriangles);
+        mergeMesh(solidBoolean.resultVertices(), resultTriangles, Vector3(0.0, 0.0, 0.0));
+    }
+    {
+        std::vector<std::vector<size_t>> resultTriangles;
+        solidBoolean.fetchDiff(resultTriangles);
+        mergeMesh(solidBoolean.resultVertices(), resultTriangles, Vector3(-1.0, 0.0, 0.0));
+    }
+    {
+        std::vector<std::vector<size_t>> resultTriangles;
+        solidBoolean.fetchIntersect(resultTriangles);
+        mergeMesh(solidBoolean.resultVertices(), resultTriangles, Vector3(1.0, 0.0, 0.0));
+    }
+    
+    SolidBoolean::exportObject("debug-merged-result.obj", 
+        mergedVertices, mergedTriangles);
     
     return 0;
 }

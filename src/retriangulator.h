@@ -24,7 +24,8 @@ private:
     std::vector<std::vector<size_t>> m_polylines;
     std::vector<std::vector<size_t>> m_innerPolygons;
     std::vector<std::vector<size_t>> m_polygons;
-    std::unordered_map<size_t, size_t> m_innerParentMap;
+    std::unordered_map<size_t, std::unordered_set<size_t>> m_innerParentsMap;
+    std::unordered_map<size_t, std::unordered_set<size_t>> m_innerChildrenMap;
     std::unordered_map<size_t, std::vector<size_t>> m_polygonHoles;
     std::vector<std::vector<size_t>> m_triangles;
     

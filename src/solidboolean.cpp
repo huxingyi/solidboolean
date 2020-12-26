@@ -560,34 +560,30 @@ void SolidBoolean::decideGroupSide(const std::vector<std::vector<size_t>> &group
     }
 }
 
-void SolidBoolean::doUnion()
+void SolidBoolean::fetchUnion(std::vector<std::vector<size_t>> &resultTriangles)
 {
-    combine();
-    
     for (size_t i = 0; i < m_firstGroupSides.size(); ++i) {
         if (m_firstGroupSides[i])
             continue;
         for (const auto &it: m_firstTriangleGroups[i])
-            m_resultTriangles.push_back(m_newTriangles[it]);
+            resultTriangles.push_back(m_newTriangles[it]);
     }
     
     for (size_t i = 0; i < m_secondGroupSides.size(); ++i) {
         if (m_secondGroupSides[i])
             continue;
         for (const auto &it: m_secondTriangleGroups[i])
-            m_resultTriangles.push_back(m_newTriangles[it]);
+            resultTriangles.push_back(m_newTriangles[it]);
     }
 }
 
-void SolidBoolean::doDiff()
+void SolidBoolean::fetchDiff(std::vector<std::vector<size_t>> &resultTriangles)
 {
-    combine();
-    
     for (size_t i = 0; i < m_firstGroupSides.size(); ++i) {
         if (m_firstGroupSides[i])
             continue;
         for (const auto &it: m_firstTriangleGroups[i])
-            m_resultTriangles.push_back(m_newTriangles[it]);
+            resultTriangles.push_back(m_newTriangles[it]);
     }
     
     for (size_t i = 0; i < m_secondGroupSides.size(); ++i) {
@@ -595,38 +591,31 @@ void SolidBoolean::doDiff()
             continue;
         for (const auto &it: m_secondTriangleGroups[i]) {
             auto triangle = m_newTriangles[it];
-            m_resultTriangles.push_back({
+            resultTriangles.push_back({
                 triangle[2], triangle[1], triangle[0]
             });
         }
     }
 }
 
-void SolidBoolean::doIntersect()
+void SolidBoolean::fetchIntersect(std::vector<std::vector<size_t>> &resultTriangles)
 {
-    combine();
-    
     for (size_t i = 0; i < m_firstGroupSides.size(); ++i) {
         if (!m_firstGroupSides[i])
             continue;
         for (const auto &it: m_firstTriangleGroups[i])
-            m_resultTriangles.push_back(m_newTriangles[it]);
+            resultTriangles.push_back(m_newTriangles[it]);
     }
     
     for (size_t i = 0; i < m_secondGroupSides.size(); ++i) {
         if (!m_secondGroupSides[i])
             continue;
         for (const auto &it: m_secondTriangleGroups[i])
-            m_resultTriangles.push_back(m_newTriangles[it]);
+            resultTriangles.push_back(m_newTriangles[it]);
     }
 }
 
 const std::vector<Vector3> &SolidBoolean::resultVertices()
 {
     return m_newVertices;
-}
-
-const std::vector<std::vector<size_t>> &SolidBoolean::resultTriangles()
-{
-    return m_resultTriangles;
 }

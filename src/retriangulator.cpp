@@ -99,19 +99,21 @@ void ReTriangulator::buildPolygonHierarchy()
     for (size_t i = 0; i < m_innerPolygons.size(); ++i) {
         for (size_t j = i + 1; j < m_innerPolygons.size(); ++j) {
             if (m_points[m_innerPolygons[i][0]].isInPolygon(m_points, m_innerPolygons[j])) {
-                m_innerParentMap[i] = j;
+                m_innerChildrenMap[j].insert(i);
+                m_innerParentsMap[i].insert(j);
             } else if (m_points[m_innerPolygons[j][0]].isInPolygon(m_points, m_innerPolygons[i])) {
-                m_innerParentMap[j] = i;
+                m_innerChildrenMap[i].insert(j);
+                m_innerParentsMap[j].insert(i);
             }
         }
     }
     
-    for (const auto &it: m_innerParentMap)
-        std::cout << "innerPolygon[" << it.first << "].parent=" << it.second << std::endl;
+    for (const auto &it: m_innerParentsMap)
+        std::cout << "innerPolygon[" << it.first << "].parent count:" << it.second.size() << std::endl;
 
     for (size_t i = 0; i < m_innerPolygons.size(); ++i) {
         const auto &inner = m_innerPolygons[i];
-        if (m_innerParentMap.find(i) != m_innerParentMap.end())
+        if (m_innerParentsMap.find(i) != m_innerParentsMap.end())
             continue;
         for (size_t j = 0; j < m_polygons.size(); ++j) {
             if (m_points[inner[0]].isInPolygon(m_points, m_polygons[j])) {
@@ -256,11 +258,8 @@ void ReTriangulator::triangulate()
         const auto &polygon = m_polygons[polygonIndex];
         
         std::vector<std::vector<std::array<double, 2>>> polygonAndHoles;
-        
         std::vector<size_t> pointIndices;
 
-        // Fill polygon structure with actual data. Any winding order works.
-        // The first polyline defines the main polygon.
         std::vector<std::array<double, 2>> border;
         for (const auto &it: polygon) {
             pointIndices.push_back(it);
@@ -269,7 +268,6 @@ void ReTriangulator::triangulate()
         }
         polygonAndHoles.push_back(border);
         
-        // Following polylines define holes.
         auto findHoles = m_polygonHoles.find(polygonIndex);
         if (findHoles != m_polygonHoles.end()) {
             for (const auto &h: findHoles->second) {
@@ -283,18 +281,57 @@ void ReTriangulator::triangulate()
             }
         }
 
-        // Run tessellation
-        // Returns array of indices that refer to the vertices of the input polygon.
-        // e.g: the index 6 would refer to {25, 75} in this example.
-        // Three subsequent indices form a triangle. Output triangles are clockwise.
         std::vector<size_t> indices = mapbox::earcut<size_t>(polygonAndHoles);
         m_triangles.reserve(indices.size() / 3);
         for (size_t i = 0; i < indices.size(); i += 3) {
-            //std::cout << "Area:" << Vector3::area(
-            //        Vector3(m_points[pointIndices[indices[i]]].x(), m_points[pointIndices[indices[i]]].y(), 0.0),
-            //        Vector3(m_points[pointIndices[indices[i + 1]]].x(), m_points[pointIndices[indices[i + 1]]].y(), 0.0),
-            //        Vector3(m_points[pointIndices[indices[i + 2]]].x(), m_points[pointIndices[indices[i + 2]]].y(), 0.0)
-            //    ) << std::endl;
+            m_triangles.push_back({
+                pointIndices[indices[i]],
+                pointIndices[indices[i + 1]],
+                pointIndices[indices[i + 2]]
+            });
+        }
+    }
+    
+    for (size_t polygonIndex = 0; polygonIndex < m_innerPolygons.size(); ++polygonIndex) {
+        const auto &polygon = m_innerPolygons[polygonIndex];
+
+        std::vector<std::vector<std::array<double, 2>>> polygonAndHoles;
+        std::vector<size_t> pointIndices;
+
+        std::vector<std::array<double, 2>> border;
+        for (const auto &it: polygon) {
+            pointIndices.push_back(it);
+            const auto &v = m_points[it];
+            border.push_back(std::array<double, 2> {v.x(), v.y()});
+        }
+        polygonAndHoles.push_back(border);
+        
+        auto childrenIt = m_innerChildrenMap.find(polygonIndex);
+        if (childrenIt != m_innerChildrenMap.end()) {
+            auto children = childrenIt->second;
+            for (const auto &child: childrenIt->second) {
+                auto grandChildrenIt = m_innerChildrenMap.find(child);
+                if (grandChildrenIt != m_innerChildrenMap.end()) {
+                    for (const auto &grandChild: grandChildrenIt->second) {
+                        std::cout << "Grand child removed:" << grandChild << std::endl;
+                        children.erase(grandChild);
+                    }
+                }
+            }
+            for (const auto &child: children) {
+                std::vector<std::array<double, 2>> hole;
+                for (const auto &it: m_innerPolygons[child]) {
+                    pointIndices.push_back(it);
+                    const auto &v = m_points[it];
+                    hole.push_back(std::array<double, 2> {v.x(), v.y()});
+                }
+                polygonAndHoles.push_back(hole);
+            }
+        }
+        
+        std::vector<size_t> indices = mapbox::earcut<size_t>(polygonAndHoles);
+        m_triangles.reserve(indices.size() / 3);
+        for (size_t i = 0; i < indices.size(); i += 3) {
             m_triangles.push_back({
                 pointIndices[indices[i]],
                 pointIndices[indices[i + 1]],
@@ -310,7 +347,6 @@ void ReTriangulator::reTriangulate()
     buildPolygons();
     buildPolygonHierarchy();
     triangulate();
-    // TODO:
 }
 
 const std::vector<std::vector<size_t>> &ReTriangulator::polygons() const
