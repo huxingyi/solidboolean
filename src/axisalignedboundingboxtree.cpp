@@ -31,6 +31,68 @@ AxisAlignedBoudingBoxTree::~AxisAlignedBoudingBoxTree()
     delete m_testPairs;
 }
 
+void AxisAlignedBoudingBoxTree::collectNodeBoxMesh(const Node *node, std::vector<Vector3> &vertices, 
+    std::vector<std::vector<size_t>> &faces) const
+{
+    if (nullptr == node)
+        return;
+    
+    const Vector3 &lowerBound = node->boundingBox.lowerBound();
+    const Vector3 &upperBound = node->boundingBox.upperBound();
+    
+    std::vector<size_t> topFace;
+    topFace.push_back(vertices.size() + 0);
+    topFace.push_back(vertices.size() + 1);
+    topFace.push_back(vertices.size() + 2);
+    topFace.push_back(vertices.size() + 3);
+    
+    vertices.push_back({lowerBound.x(), lowerBound.y(), upperBound.z()});
+    vertices.push_back({upperBound.x(), lowerBound.y(), upperBound.z()});
+    vertices.push_back({upperBound.x(), lowerBound.y(), lowerBound.z()});
+    vertices.push_back({lowerBound.x(), lowerBound.y(), lowerBound.z()});
+    
+    std::vector<size_t> bottomFace;
+    bottomFace.push_back(vertices.size() + 0);
+    bottomFace.push_back(vertices.size() + 1);
+    bottomFace.push_back(vertices.size() + 2);
+    bottomFace.push_back(vertices.size() + 3);
+    
+    vertices.push_back({lowerBound.x(), upperBound.y(), upperBound.z()});
+    vertices.push_back({upperBound.x(), upperBound.y(), upperBound.z()});
+    vertices.push_back({upperBound.x(), upperBound.y(), lowerBound.z()});
+    vertices.push_back({lowerBound.x(), upperBound.y(), lowerBound.z()});
+    
+    faces.push_back(topFace);
+    for (size_t i = 0; i < topFace.size(); ++i) {
+        size_t j = (i + 1) % topFace.size();
+        faces.push_back({topFace[j], topFace[i], bottomFace[i], bottomFace[j]});
+    }
+    std::reverse(bottomFace.begin(), bottomFace.end());
+    faces.push_back(bottomFace);
+    
+    collectNodeBoxMesh(node->left, vertices, faces);
+    collectNodeBoxMesh(node->right, vertices, faces);
+}
+
+void AxisAlignedBoudingBoxTree::exportObject(const char *filename) const
+{
+    std::vector<Vector3> vertices;
+    std::vector<std::vector<size_t>> faces;
+    collectNodeBoxMesh(m_root, vertices, faces);
+    
+    FILE *fp = fopen(filename, "wb");
+    for (const auto &it: vertices) {
+        fprintf(fp, "v %f %f %f\n", it.x(), it.y(), it.z());
+    }
+    for (const auto &it: faces) {
+        fprintf(fp, "f");
+        for (const auto &v: it)
+            fprintf(fp, " %zu", v + 1);
+        fprintf(fp, "\n");
+    }
+    fclose(fp);
+}
+
 void AxisAlignedBoudingBoxTree::testNodes(const Node *first, const Node *second)
 {
     if (first->boundingBox.intersectWith(second->boundingBox)) {

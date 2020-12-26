@@ -18,6 +18,8 @@ public:
 private:
     const SolidMesh *m_firstMesh = nullptr;
     const SolidMesh *m_secondMesh = nullptr;
+    AxisAlignedBoudingBoxTree *m_leftTree = nullptr;
+    AxisAlignedBoudingBoxTree *m_rightTree = nullptr;
     std::vector<std::pair<size_t, size_t>> *m_potentialIntersectedPairs = nullptr;
     
     void addMeshToAxisAlignedBoundingBox(const SolidMesh &mesh, AxisAlignedBoudingBox *box);

@@ -55,8 +55,8 @@ int main(int argc, char ** argv)
     std::vector<Vector3> secondVertices; 
     std::vector<std::vector<size_t>> secondTriangles;
     
-    loadObj("../../cases/complex/a.obj", firstVertices, firstTriangles);
-    loadObj("../../cases/complex/b.obj", secondVertices, secondTriangles);
+    loadObj("../../cases/addax-and-meerkat/a.obj", firstVertices, firstTriangles);
+    loadObj("../../cases/addax-and-meerkat/b.obj", secondVertices, secondTriangles);
     
     SolidMesh firstMesh;
     firstMesh.setVertices(&firstVertices);

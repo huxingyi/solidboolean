@@ -15,6 +15,8 @@ SolidBoolean::SolidBoolean(const SolidMesh *m_firstMesh,
 SolidBoolean::~SolidBoolean()
 {
     delete m_potentialIntersectedPairs;
+    delete m_leftTree;
+    delete m_rightTree;
 }
 
 void SolidBoolean::addMeshToAxisAlignedBoundingBox(const SolidMesh &mesh, AxisAlignedBoudingBox *box)
@@ -75,10 +77,13 @@ void SolidBoolean::searchPotentialIntersectedPairs()
     }
     secondGroupBox.updateCenter();
     
-    AxisAlignedBoudingBoxTree leftTree(&firstMeshFaceAABBs, firstGroupOfFacesIn, firstGroupBox);
-    AxisAlignedBoudingBoxTree rightTree(&secondMeshFaceAABBs, secondGroupOfFacesIn, secondGroupBox);
+    m_leftTree = new AxisAlignedBoudingBoxTree(&firstMeshFaceAABBs, firstGroupOfFacesIn, firstGroupBox);
+    m_rightTree = new AxisAlignedBoudingBoxTree(&secondMeshFaceAABBs, secondGroupOfFacesIn, secondGroupBox);
     
-    m_potentialIntersectedPairs = leftTree.test(leftTree.root(), rightTree.root(), &secondMeshFaceAABBs);
+    m_potentialIntersectedPairs = m_leftTree->test(m_leftTree->root(), m_rightTree->root(), &secondMeshFaceAABBs);
+    
+    m_leftTree->exportObject("debug-lefttree.obj");
+    m_rightTree->exportObject("debug-righttree.obj");
 }
 
 bool SolidBoolean::intersectTwoFaces(size_t firstIndex, size_t secondIndex, std::pair<Vector3, Vector3> &newEdge)
@@ -311,6 +316,7 @@ void SolidBoolean::combine()
     reTriangulate(firstTriangleIntersectedContext, m_firstMesh, firstEdges, firstHalfEdges);
     reTriangulate(secondTriangleIntersectedContext, m_secondMesh, secondEdges, secondHalfEdges);
     buildPolygonsFromEdges(firstEdges, firstIntersections);
+    std::unordered_map<size_t, int> firstTriangleOrientations;
     for (const auto &intersection: firstIntersections) {
         std::cout << "Intersection:";
         for (const auto &it: intersection)
@@ -320,6 +326,23 @@ void SolidBoolean::combine()
             newVertices,
             newTriangleNormals, 
             firstHalfEdges);
+        int orientation = inward ? 1 : -1;
+        for (size_t i = 0; i < intersection.size(); ++i) {
+            size_t j = (i + 1) % intersection.size();
+            {
+                auto edgeIt = firstHalfEdges.find({intersection[i], intersection[j]});
+                if (edgeIt != firstHalfEdges.end()) {
+                    firstTriangleOrientations.insert({edgeIt->second, orientation});
+                }
+            }
+            {
+                auto edgeIt = firstHalfEdges.find({intersection[j], intersection[i]});
+                if (edgeIt != firstHalfEdges.end()) {
+                    firstTriangleOrientations.insert({edgeIt->second, -orientation});
+                }
+            }
+        }
+            
         std::cout << " " << (inward ? "inward" : "outward");
         std::cout << std::endl;
     }
