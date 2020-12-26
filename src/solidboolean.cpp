@@ -59,9 +59,11 @@ bool SolidBoolean::isPointInMesh(const Vector3 &testPosition,
     std::vector<Vector3> debugVertices;
     std::vector<std::vector<size_t>> debugLines;
     
-    //std::cout << "=====================" << std::endl;
+    if (nullptr != debugName)
+        std::cout << "========== " << debugName << " ===========" << std::endl;
     for (const auto &it: *pairs) {
-        //std::cout << "Test pair:" << it.first << "~" << it.second;
+        if (nullptr != debugName)
+            std::cout << "Test pair:" << it.first << "~" << it.second;
         const auto &triangle = (*targetMesh->triangles())[it.first];
         std::vector<Vector3> trianglePositions = {
             (*targetMesh->vertices())[triangle[0]],
@@ -78,16 +80,20 @@ bool SolidBoolean::isPointInMesh(const Vector3 &testPosition,
                 size_t j = (i + 1) % 3;
                 normals.push_back(Vector3::normal(intersection, trianglePositions[i], trianglePositions[j]));
             }
-            if (Vector3::dotProduct(normals[0], normals[1]) > 0 == Vector3::dotProduct(normals[0], normals[2]) > 0) {
+            if (Vector3::dotProduct(normals[0], normals[1]) > 0 && Vector3::dotProduct(normals[0], normals[2]) > 0) {
                 debugLines.push_back({debugVertices.size(), debugVertices.size() + 1});
                 debugVertices.push_back(testPosition);
                 debugVertices.push_back(intersection);
                 
                 hits.insert(PositionKey(intersection));
-                //std::cout << " hits[" << hits.size() << "]: intersection:" << intersection;
+                
+                if (nullptr != debugName)
+                    std::cout << " hits[" << hits.size() << "]: intersection:" << intersection;
             }
         }
-        //std::cout << std::endl;
+        
+        if (nullptr != debugName)
+            std::cout << std::endl;
     }
     inside = 0 != hits.size() % 2;
     delete pairs;
@@ -459,56 +465,13 @@ void SolidBoolean::combine()
     decideGroupSide(m_firstTriangleGroups,
         m_secondMesh,
         m_rightTree,
-        m_firstGroupSides);
+        m_firstGroupSides,
+        "first");
     decideGroupSide(m_secondTriangleGroups,
         m_firstMesh,
         m_leftTree,
-        m_secondGroupSides);
-    
-    /*
-    std::vector<Vector3> g_testAxisList = {
-        {std::numeric_limits<double>::max(), std::numeric_limits<double>::epsilon(), std::numeric_limits<double>::epsilon()},
-        {std::numeric_limits<double>::epsilon(), std::numeric_limits<double>::max(), std::numeric_limits<double>::epsilon()},
-        {std::numeric_limits<double>::epsilon(), std::numeric_limits<double>::epsilon(), std::numeric_limits<double>::max()},
-    };
-    size_t groupIndex = 0;
-    for (size_t i = 0; i < m_firstTriangleGroups.size(); ++i) {
-        const auto &group = m_firstTriangleGroups[i];
-        if (group.empty())
-            continue;
-        size_t insideCount = 0;
-        size_t totalCount = 0;
-        for (size_t pickIndex = 0; pickIndex < 6 && pickIndex < group.size(); ++pickIndex) {
-            for (size_t axisIndex = 0; axisIndex < g_testAxisList.size(); ++axisIndex) {
-                //char debugName[200];
-                //sprintf(debugName, "debug-line-group%zu-axis-%zu.obj", groupIndex, axisIndex);
-                const auto &pickedTriangle = m_newTriangles[group[pickIndex]];
-                bool inside = isPointInMesh((m_newVertices[pickedTriangle[0]] +
-                        m_newVertices[pickedTriangle[1]] +
-                        m_newVertices[pickedTriangle[2]]) / 3.0, 
-                    m_secondMesh,
-                    m_rightTree,
-                    g_testAxisList[axisIndex],
-                    nullptr); //debugName);
-                if (inside)
-                    ++insideCount;
-                ++totalCount;
-            }
-        }
-        
-        std::cout << "Group[" << groupIndex << "]:";
-        std::cout << "Decide on " << insideCount << " result:" << (((float)insideCount / totalCount > 0.5) ? "inside" : "outside");
-        std::cout << std::endl;
-        
-        std::vector<std::vector<size_t>> groupTriangles;
-        for (const auto &it: group)
-            groupTriangles.push_back(m_newTriangles[it]);
-        char filename[200];
-        sprintf(filename, "debug-group-%zu.obj", groupIndex);
-        exportObject(filename, m_newVertices, groupTriangles);
-        ++groupIndex;
-    }
-    */
+        m_secondGroupSides,
+        "second");
     
     exportObject("debug-triangles.obj", m_newVertices, m_newTriangles);
     
@@ -530,7 +493,8 @@ void SolidBoolean::combine()
 void SolidBoolean::decideGroupSide(const std::vector<std::vector<size_t>> &groups,
         const SolidMesh *mesh,
         AxisAlignedBoudingBoxTree *tree,
-        std::vector<bool> &groupSides)
+        std::vector<bool> &groupSides,
+        const char *name)
 {
     groupSides.resize(groups.size());
     for (size_t i = 0; i < groups.size(); ++i) {
@@ -539,10 +503,10 @@ void SolidBoolean::decideGroupSide(const std::vector<std::vector<size_t>> &group
             continue;
         size_t insideCount = 0;
         size_t totalCount = 0;
-        for (size_t pickIndex = 0; pickIndex < 6 && pickIndex < group.size(); ++pickIndex) {
+        for (size_t pickIndex = 0; pickIndex < 1 && pickIndex < group.size(); ++pickIndex) {
             for (size_t axisIndex = 0; axisIndex < g_testAxisList.size(); ++axisIndex) {
-                //char debugName[200];
-                //sprintf(debugName, "debug-line-group%zu-axis-%zu.obj", groupIndex, axisIndex);
+                char debugName[200];
+                sprintf(debugName, "debug-%s-line-group%zu-axis-%zu.obj", name, i, axisIndex);
                 const auto &pickedTriangle = m_newTriangles[group[pickIndex]];
                 bool inside = isPointInMesh((m_newVertices[pickedTriangle[0]] +
                         m_newVertices[pickedTriangle[1]] +
@@ -550,7 +514,7 @@ void SolidBoolean::decideGroupSide(const std::vector<std::vector<size_t>> &group
                     mesh,
                     tree,
                     g_testAxisList[axisIndex],
-                    nullptr); //debugName);
+                    debugName);
                 if (inside)
                     ++insideCount;
                 ++totalCount;

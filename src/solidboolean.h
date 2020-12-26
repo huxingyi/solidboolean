@@ -61,7 +61,8 @@ private:
     void decideGroupSide(const std::vector<std::vector<size_t>> &groups,
         const SolidMesh *mesh,
         AxisAlignedBoudingBoxTree *tree,
-        std::vector<bool> &groupSides);
+        std::vector<bool> &groupSides,
+        const char *name);
 };
 
 #endif
