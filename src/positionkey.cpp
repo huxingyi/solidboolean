@@ -9,18 +9,9 @@ PositionKey::PositionKey(const Vector3 &v) :
 
 PositionKey::PositionKey(double x, double y, double z)
 {
-    m_position.setX(x);
-    m_position.setY(y);
-    m_position.setZ(z);
-    
     m_intX = (long)(x * m_toIntFactor);
     m_intY = (long)(y * m_toIntFactor);
     m_intZ = (long)(z * m_toIntFactor);
-}
-
-const Vector3 &PositionKey::position() const
-{
-    return m_position;
 }
 
 bool PositionKey::operator<(const PositionKey &right) const

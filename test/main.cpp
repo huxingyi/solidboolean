@@ -1,9 +1,32 @@
 #include <string>
 #include <iostream>
+#include <chrono>
 #include "vector3.h"
 #include "solidboolean.h"
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
+
+static void exportObject(const char *filename, const std::vector<Vector3> &vertices, const std::vector<std::vector<size_t>> &faces)
+{
+    FILE *fp = fopen(filename, "wb");
+    for (const auto &it: vertices) {
+        fprintf(fp, "v %f %f %f\n", it.x(), it.y(), it.z());
+    }
+    for (const auto &it: faces) {
+        if (it.size() == 2) {
+            fprintf(fp, "l");
+            for (const auto &v: it)
+                fprintf(fp, " %zu", v + 1);
+            fprintf(fp, "\n");
+            continue;
+        }
+        fprintf(fp, "f");
+        for (const auto &v: it)
+            fprintf(fp, " %zu", v + 1);
+        fprintf(fp, "\n");
+    }
+    fclose(fp);
+}
 
 static bool loadObj(const std::string &filename, 
     std::vector<Vector3> &outputVertices, 
@@ -55,8 +78,13 @@ int main(int argc, char ** argv)
     std::vector<Vector3> secondVertices; 
     std::vector<std::vector<size_t>> secondTriangles;
     
-    loadObj("../../cases/simple-ring/a.obj", firstVertices, firstTriangles);
-    loadObj("../../cases/simple-ring/b.obj", secondVertices, secondTriangles);
+    loadObj("../../cases/addax-and-meerkat/a.obj", firstVertices, firstTriangles);
+    loadObj("../../cases/addax-and-meerkat/b.obj", secondVertices, secondTriangles);
+    
+    //loadObj("../../cases/cube-sphere/a.obj", firstVertices, firstTriangles);
+    //loadObj("../../cases/cube-sphere/b.obj", secondVertices, secondTriangles);
+    
+    auto t1 = std::chrono::high_resolution_clock::now();
     
     SolidMesh firstMesh;
     firstMesh.setVertices(&firstVertices);
@@ -70,6 +98,12 @@ int main(int argc, char ** argv)
     
     SolidBoolean solidBoolean(&firstMesh, &secondMesh);
     solidBoolean.combine();
+    
+    auto t2 = std::chrono::high_resolution_clock::now();
+    
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>( t2 - t1 ).count();
+    
+    std::cout << "Duration:" << duration << std::endl;
     
     std::vector<Vector3> mergedVertices;
     std::vector<std::vector<size_t>> mergedTriangles;
@@ -106,7 +140,7 @@ int main(int argc, char ** argv)
         mergeMesh(solidBoolean.resultVertices(), resultTriangles, Vector3(1.0, 0.0, 0.0));
     }
     
-    SolidBoolean::exportObject("debug-merged-result.obj", 
+    exportObject("debug-merged-result.obj", 
         mergedVertices, mergedTriangles);
     
     return 0;

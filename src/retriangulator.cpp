@@ -29,19 +29,15 @@ void ReTriangulator::lookupPolylinesFromNeighborMap(const std::unordered_map<siz
     endpoints.reserve(neighborMap.size());
     for (const auto &it: neighborMap) {
         if (it.second.size() == 1) {
-            //std::cout << "Endpoint:" << it.first << "=>count:" << it.second.size() << std::endl;
             endpoints.push_back(it.first);
         }
     }
     for (const auto &it: neighborMap) {
         if (it.second.size() > 1) {
-            //std::cout << "Edge:" << it.first << "=>count:" << it.second.size() << std::endl;
             endpoints.push_back(it.first);
         }
     }
-    
-    //std::cout << "endpoints:" << endpoints.size() << std::endl;
-    
+
     std::unordered_set<size_t> visited;
     for (const auto &startEndpoint: endpoints) {
         if (visited.find(startEndpoint) != visited.end())
@@ -72,15 +68,6 @@ void ReTriangulator::lookupPolylinesFromNeighborMap(const std::unordered_map<siz
             }
         }
         m_polylines.push_back(polyline);
-        
-        /*
-        std::cout << "polyline:";
-        for (const auto &it: polyline)
-            std::cout << it << " ";
-        if (polyline.front() == polyline.back())
-            std::cout << "(RING)";
-        std::cout << std::endl;
-        */
     }
 }
 
@@ -107,9 +94,6 @@ void ReTriangulator::buildPolygonHierarchy()
             }
         }
     }
-    
-    for (const auto &it: m_innerParentsMap)
-        std::cout << "innerPolygon[" << it.first << "].parent count:" << it.second.size() << std::endl;
 
     for (size_t i = 0; i < m_innerPolygons.size(); ++i) {
         const auto &inner = m_innerPolygons[i];
@@ -119,13 +103,6 @@ void ReTriangulator::buildPolygonHierarchy()
             if (m_points[inner[0]].isInPolygon(m_points, m_polygons[j])) {
                 m_polygonHoles[j].push_back(i);
             }
-        }
-    }
-    
-    for (const auto &it: m_polygonHoles) {
-        std::cout << "Polygon[" << it.first << "] holes:" << std::endl;
-        for (const auto &inner: it.second) {
-            std::cout << "  inner:" << inner << std::endl;
         }
     }
 }
@@ -147,9 +124,8 @@ bool ReTriangulator::buildPolygons()
         int frontEdge = attachPointToTriangleEdge(m_points[polyline.front()]);
         int backEdge = attachPointToTriangleEdge(m_points[polyline.back()]);
         if (-1 == frontEdge || -1 == backEdge) {
-            std::cout << "frontEdge:" << frontEdge << std::endl;
-            std::cout << "backEdge:" << backEdge << std::endl;
-            continue;
+            std::cout << "Attach point to triangle edge failed" << std::endl;
+            return false;
         }
         edgePoints[frontEdge].push_back({
             polyline.front(),
@@ -197,9 +173,7 @@ bool ReTriangulator::buildPolygons()
             continue;
         it.linkTo = findLinkTo->second;
     }
-    
-    //std::cout << "Build polygons..." << std::endl;
-    
+
     std::unordered_set<size_t> visited;
     std::queue<size_t> startQueue;
     startQueue.push(0);
@@ -234,20 +208,6 @@ bool ReTriangulator::buildPolygons()
         } while (loopIndex != startIndex);
         m_polygons.push_back(polygon);
     }
-    
-    //std::cout << "m_polylines:" << m_polylines.size() << std::endl;
-    //for (size_t i = 0; i < ringPoints.size(); ++i) {
-    //    const auto &it = ringPoints[i];
-    //    std::cout << "[" << i << "] point:" << it.pointIndex << " linkPoint:" << it.linkToPointIndex << " polylineIndex:" << it.polylineIndex << " linkTo:" << it.linkTo << std::endl;
-    //}
-    
-    //for (size_t i = 0; i < m_polygons.size(); ++i) {
-    //    const auto &it = m_polygons[i];
-    //    std::cout << "Polygon[" << i << "]:";
-    //    for (const auto &pointIndex: it)
-    //        std::cout << pointIndex << "\t";
-    //    std::cout << std::endl;
-    //}
     
     return true;
 }
@@ -341,12 +301,16 @@ void ReTriangulator::triangulate()
     }
 }
 
-void ReTriangulator::reTriangulate()
+bool ReTriangulator::reTriangulate()
 {
     lookupPolylinesFromNeighborMap(*m_neighborMapFrom3);
-    buildPolygons();
+    if (!buildPolygons()) {
+        std::cout << "Build polygons failed" << std::endl;
+        return false;
+    }
     buildPolygonHierarchy();
     triangulate();
+    return true;
 }
 
 const std::vector<std::vector<size_t>> &ReTriangulator::polygons() const

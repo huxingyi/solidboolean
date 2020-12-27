@@ -12,7 +12,7 @@ public:
         const Vector3 &normal);
     void setEdges(const std::vector<Vector3> &points,
         const std::unordered_map<size_t, std::unordered_set<size_t>> *neighborMapFrom3);
-    void reTriangulate();
+    bool reTriangulate();
     const std::vector<std::vector<size_t>> &polygons() const;
     const std::vector<std::vector<size_t>> &triangles() const;
 private:
