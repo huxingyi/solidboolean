@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.1...3.19)
 
+set(CMAKE_CXX_FLAGS_RELEASE "/O2")
+
 project(test-solidboolean)
 
 include_directories(

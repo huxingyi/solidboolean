@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <map>
+#include <chrono>
 #include "vector3.h"
 #include "solidmesh.h"
 #include "axisalignedboundingboxtree.h"
@@ -21,6 +22,21 @@ public:
     void fetchIntersect(std::vector<std::vector<size_t>> &resultTriangles);
     
     const std::vector<Vector3> &resultVertices();
+    
+    std::chrono::time_point<std::chrono::high_resolution_clock> benchBegin_searchPotentialIntersectedPairs;
+    std::chrono::time_point<std::chrono::high_resolution_clock> benchEnd_searchPotentialIntersectedPairs;
+    std::chrono::time_point<std::chrono::high_resolution_clock> benchBegin_processPotentialIntersectedPairs;
+    std::chrono::time_point<std::chrono::high_resolution_clock> benchEnd_processPotentialIntersectedPairs;
+    std::chrono::time_point<std::chrono::high_resolution_clock> benchBegin_addUnintersectedTriangles;
+    std::chrono::time_point<std::chrono::high_resolution_clock> benchEnd_addUnintersectedTriangles;
+    std::chrono::time_point<std::chrono::high_resolution_clock> benchBegin_reTriangulate;
+    std::chrono::time_point<std::chrono::high_resolution_clock> benchEnd_reTriangulate;
+    std::chrono::time_point<std::chrono::high_resolution_clock> benchBegin_buildPolygonsFromEdges;
+    std::chrono::time_point<std::chrono::high_resolution_clock> benchEnd_buildPolygonsFromEdges;
+    std::chrono::time_point<std::chrono::high_resolution_clock> benchBegin_buildFaceGroups;
+    std::chrono::time_point<std::chrono::high_resolution_clock> benchEnd_buildFaceGroups;
+    std::chrono::time_point<std::chrono::high_resolution_clock> benchBegin_decideGroupSide;
+    std::chrono::time_point<std::chrono::high_resolution_clock> benchEnd_decideGroupSide;
 private:
     const SolidMesh *m_firstMesh = nullptr;
     const SolidMesh *m_secondMesh = nullptr;
@@ -38,6 +54,8 @@ private:
     std::vector<bool> m_secondGroupSides;
     std::unordered_set<size_t> m_firstIntersectedFaces;
     std::unordered_set<size_t> m_secondIntersectedFaces;
+    std::unordered_map<size_t, std::vector<size_t>> m_firstFacesAroundVertexMap;
+    std::unordered_map<size_t, std::vector<size_t>> m_secondFacesAroundVertexMap;
     
     static inline uint64_t makeHalfEdgeKey(size_t first, size_t second)
     {

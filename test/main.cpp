@@ -101,9 +101,17 @@ int main(int argc, char ** argv)
     
     auto t2 = std::chrono::high_resolution_clock::now();
     
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>( t2 - t1 ).count();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
     
     std::cout << "Duration:" << duration << std::endl;
+    
+    std::cout << "\tsearchPotentialIntersectedPairs:" << std::chrono::duration_cast<std::chrono::milliseconds>(solidBoolean.benchEnd_searchPotentialIntersectedPairs - solidBoolean.benchBegin_searchPotentialIntersectedPairs).count() << std::endl;
+    std::cout << "\tprocessPotentialIntersectedPairs:" << std::chrono::duration_cast<std::chrono::milliseconds>(solidBoolean.benchEnd_processPotentialIntersectedPairs - solidBoolean.benchBegin_processPotentialIntersectedPairs).count() << std::endl;
+    std::cout << "\taddUnintersectedTriangles:" << std::chrono::duration_cast<std::chrono::milliseconds>(solidBoolean.benchEnd_addUnintersectedTriangles - solidBoolean.benchBegin_addUnintersectedTriangles).count() << std::endl;
+    std::cout << "\treTriangulate:" << std::chrono::duration_cast<std::chrono::milliseconds>(solidBoolean.benchEnd_reTriangulate - solidBoolean.benchBegin_reTriangulate).count() << std::endl;
+    std::cout << "\tbuildPolygonsFromEdges:" << std::chrono::duration_cast<std::chrono::milliseconds>(solidBoolean.benchEnd_buildPolygonsFromEdges - solidBoolean.benchBegin_buildPolygonsFromEdges).count() << std::endl;
+    std::cout << "\tbuildFaceGroups:" << std::chrono::duration_cast<std::chrono::milliseconds>(solidBoolean.benchEnd_buildFaceGroups - solidBoolean.benchBegin_buildFaceGroups).count() << std::endl;
+    std::cout << "\tdecideGroupSide:" << std::chrono::duration_cast<std::chrono::milliseconds>(solidBoolean.benchEnd_decideGroupSide - solidBoolean.benchBegin_decideGroupSide).count() << std::endl;
     
     std::vector<Vector3> mergedVertices;
     std::vector<std::vector<size_t>> mergedTriangles;

@@ -97,24 +97,14 @@ void SolidBoolean::searchPotentialIntersectedPairs()
         m_secondMeshFaceAABBs[i].updateCenter();
     }
     
-    AxisAlignedBoudingBox firstBox;
-    AxisAlignedBoudingBox secondBox;
-    AxisAlignedBoudingBox intersectedBox;
-    addMeshToAxisAlignedBoundingBox(*m_firstMesh, &firstBox);
-    addMeshToAxisAlignedBoundingBox(*m_secondMesh, &secondBox);
-    firstBox.intersectWithAt(secondBox, &intersectedBox);
     std::vector<size_t> firstGroupOfFacesIn;
     std::vector<size_t> secondGroupOfFacesIn;
-    for (size_t i = 0; i < m_firstMeshFaceAABBs.size(); ++i) {
-        //if (intersectedBox.intersectWith(m_firstMeshFaceAABBs[i])) {
-            firstGroupOfFacesIn.push_back(i);
-        //}
-    }
-    for (size_t i = 0; i < m_secondMeshFaceAABBs.size(); ++i) {
-        //if (intersectedBox.intersectWith(m_secondMeshFaceAABBs[i])) {
-            secondGroupOfFacesIn.push_back(i);
-        //}
-    }
+    firstGroupOfFacesIn.reserve(m_firstMeshFaceAABBs.size());
+    secondGroupOfFacesIn.reserve(m_secondMeshFaceAABBs.size());
+    for (size_t i = 0; i < m_firstMeshFaceAABBs.size(); ++i)
+        firstGroupOfFacesIn.push_back(i);
+    for (size_t i = 0; i < m_secondMeshFaceAABBs.size(); ++i)
+        secondGroupOfFacesIn.push_back(i);
 
     AxisAlignedBoudingBox firstGroupBox;
     for (const auto &i: firstGroupOfFacesIn) {
@@ -287,6 +277,7 @@ bool SolidBoolean::addUnintersectedTriangles(const SolidMesh *mesh,
 {
     size_t oldVertexCount = m_newVertices.size();
     const auto &vertices = *mesh->vertices();
+    m_newVertices.reserve(m_newVertices.size() + vertices.size());
     m_newVertices.insert(m_newVertices.end(),
         vertices.begin(), vertices.end());
     size_t triangleCount = mesh->triangles()->size();
@@ -320,7 +311,11 @@ bool SolidBoolean::addUnintersectedTriangles(const SolidMesh *mesh,
 
 bool SolidBoolean::combine()
 {
+    benchBegin_searchPotentialIntersectedPairs = std::chrono::high_resolution_clock::now();
+    
     searchPotentialIntersectedPairs();
+    
+    benchEnd_searchPotentialIntersectedPairs = std::chrono::high_resolution_clock::now();
     
     struct IntersectedContext
     {
@@ -338,6 +333,8 @@ bool SolidBoolean::combine()
             context.points.push_back(position);
         return insertResult.first->second;
     };
+    
+    benchBegin_processPotentialIntersectedPairs = std::chrono::high_resolution_clock::now();
     
     for (const auto &pair: *m_potentialIntersectedPairs) {
         std::pair<Vector3, Vector3> newEdge;
@@ -366,6 +363,8 @@ bool SolidBoolean::combine()
             }
         }
     }
+    
+    benchEnd_processPotentialIntersectedPairs = std::chrono::high_resolution_clock::now();
     
     std::unordered_map<size_t, std::unordered_set<size_t>> firstEdges;
     std::unordered_map<size_t, std::unordered_set<size_t>> secondEdges;
@@ -431,6 +430,8 @@ bool SolidBoolean::combine()
         return true;
     };
     
+    benchBegin_addUnintersectedTriangles = std::chrono::high_resolution_clock::now();
+    
     size_t firstRemainingStartTriangleIndex = m_newTriangles.size();
     if (!addUnintersectedTriangles(m_firstMesh, m_firstIntersectedFaces, &firstHalfEdges)) {
         std::cout << "Add first mesh remaining triangles failed" << std::endl;
@@ -443,6 +444,10 @@ bool SolidBoolean::combine()
     }
     size_t secondRemainingTriangleCount = m_newTriangles.size() - secondRemainingStartTriangleIndex;
     
+    benchEnd_addUnintersectedTriangles = std::chrono::high_resolution_clock::now();
+    
+    benchBegin_reTriangulate = std::chrono::high_resolution_clock::now();
+    
     if (!reTriangulate(firstTriangleIntersectedContext, 
             m_firstMesh, 0, firstEdges, firstHalfEdges)) {
         std::cout << "Retriangulate first mesh failed" << std::endl;
@@ -454,10 +459,18 @@ bool SolidBoolean::combine()
         return false;
     }
     
+    benchEnd_reTriangulate = std::chrono::high_resolution_clock::now();
+    
+    benchBegin_buildPolygonsFromEdges = std::chrono::high_resolution_clock::now();
+    
     if (!buildPolygonsFromEdges(firstEdges, firstIntersections)) {
         std::cout << "Build polygons from edges failed" << std::endl;
         return false;
     }
+    
+    benchEnd_buildPolygonsFromEdges = std::chrono::high_resolution_clock::now();
+    
+    benchBegin_buildFaceGroups = std::chrono::high_resolution_clock::now();
     
     buildFaceGroups(firstIntersections,
         firstHalfEdges,
@@ -471,7 +484,11 @@ bool SolidBoolean::combine()
         secondRemainingStartTriangleIndex,
         secondRemainingTriangleCount,
         m_secondTriangleGroups);
-       
+        
+    benchEnd_buildFaceGroups = std::chrono::high_resolution_clock::now();
+    
+    benchBegin_decideGroupSide = std::chrono::high_resolution_clock::now();
+    
     decideGroupSide(m_firstTriangleGroups,
         m_secondMesh,
         m_rightTree,
@@ -480,6 +497,8 @@ bool SolidBoolean::combine()
         m_firstMesh,
         m_leftTree,
         m_secondGroupSides);
+        
+    benchEnd_decideGroupSide = std::chrono::high_resolution_clock::now();
 
     return true;
 }

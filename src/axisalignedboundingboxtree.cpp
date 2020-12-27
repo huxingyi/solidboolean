@@ -93,11 +93,10 @@ void AxisAlignedBoudingBoxTree::splitNode(Node *node)
     std::vector<std::pair<size_t, float>> spans(3);
     for (size_t i = 0; i < 3; ++i)
         spans[i] = {i, upper[i] - lower[i]};
-    std::sort(spans.begin(), spans.end(), [](const std::pair<size_t, float> &first,
+    size_t longestAxis = std::max_element(spans.begin(), spans.end(), [](const std::pair<size_t, float> &first,
             const std::pair<size_t, float> &second) {
         return first.second < second.second;
-    });
-    size_t longestAxis = spans[spans.size() - 1].first;
+    })->first;
     auto splitPoint = node->center[longestAxis];
     node->left = new Node;
     node->right = new Node;
