@@ -2,7 +2,7 @@
 Closed 3D Triangle Mesh Boolean Operation Library
 
 # Overview
-It's under development, and is ready for test usage, **please do not used in product environment yet**.
+It's under development, and is ready for test usage, **please do not use in product environment yet**.
 
 # License
 MIT License
