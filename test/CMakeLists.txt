@@ -20,7 +20,6 @@ add_executable(test-solidboolean
     
     ../src/double.h
     
-    ../src/axisalignedboundingbox.cpp
     ../src/axisalignedboundingbox.h
     
     ../src/axisalignedboundingboxtree.cpp

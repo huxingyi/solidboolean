@@ -22,7 +22,8 @@ public:
     void fetchIntersect(std::vector<std::vector<size_t>> &resultTriangles);
     
     const std::vector<Vector3> &resultVertices();
-    
+    std::chrono::time_point<std::chrono::high_resolution_clock> benchBegin_buildTrees;
+    std::chrono::time_point<std::chrono::high_resolution_clock> benchEnd_buildTrees;
     std::chrono::time_point<std::chrono::high_resolution_clock> benchBegin_searchPotentialIntersectedPairs;
     std::chrono::time_point<std::chrono::high_resolution_clock> benchEnd_searchPotentialIntersectedPairs;
     std::chrono::time_point<std::chrono::high_resolution_clock> benchBegin_processPotentialIntersectedPairs;
@@ -62,8 +63,12 @@ private:
         return (first << 32) | second;
     }
     
-    void addMeshToAxisAlignedBoundingBox(const SolidMesh &mesh, AxisAlignedBoudingBox *box);
-    void addTriagleToAxisAlignedBoundingBox(const SolidMesh &mesh, const std::vector<size_t> &triangle, AxisAlignedBoudingBox *box);
+    void addTriagleToAxisAlignedBoundingBox(const SolidMesh &mesh, const std::vector<size_t> &triangle, AxisAlignedBoudingBox *box)
+    {
+        for (size_t i = 0; i < 3; ++i)
+            box->update((*mesh.vertices())[triangle[i]]);
+    }
+    
     void searchPotentialIntersectedPairs();
     bool intersectTwoFaces(size_t firstIndex, size_t secondIndex, std::pair<Vector3, Vector3> &newEdge);
     bool buildPolygonsFromEdges(const std::unordered_map<size_t, std::unordered_set<size_t>> &edges,

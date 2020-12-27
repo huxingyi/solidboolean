@@ -26,18 +26,6 @@ SolidBoolean::~SolidBoolean()
     delete m_rightTree;
 }
 
-void SolidBoolean::addMeshToAxisAlignedBoundingBox(const SolidMesh &mesh, AxisAlignedBoudingBox *box)
-{
-    for (const auto &vertex: *mesh.vertices())
-        box->update(vertex);
-}
-
-void SolidBoolean::addTriagleToAxisAlignedBoundingBox(const SolidMesh &mesh, const std::vector<size_t> &triangle, AxisAlignedBoudingBox *box)
-{
-    for (size_t i = 0; i < 3; ++i)
-        box->update((*mesh.vertices())[triangle[i]]);
-}
-
 bool SolidBoolean::isPointInMesh(const Vector3 &testPosition, 
     const SolidMesh *targetMesh,
     AxisAlignedBoudingBoxTree *meshBoxTree,
@@ -86,6 +74,8 @@ bool SolidBoolean::isPointInMesh(const Vector3 &testPosition,
 
 void SolidBoolean::searchPotentialIntersectedPairs()
 {
+    benchBegin_buildTrees = std::chrono::high_resolution_clock::now();
+    
     m_firstMeshFaceAABBs.resize(m_firstMesh->triangles()->size());
     m_secondMeshFaceAABBs.resize(m_secondMesh->triangles()->size());
     for (size_t i = 0; i < m_firstMeshFaceAABBs.size(); ++i) {
@@ -120,6 +110,8 @@ void SolidBoolean::searchPotentialIntersectedPairs()
     
     m_leftTree = new AxisAlignedBoudingBoxTree(&m_firstMeshFaceAABBs, firstGroupOfFacesIn, firstGroupBox);
     m_rightTree = new AxisAlignedBoudingBoxTree(&m_secondMeshFaceAABBs, secondGroupOfFacesIn, secondGroupBox);
+    
+    benchEnd_buildTrees = std::chrono::high_resolution_clock::now();
     
     m_potentialIntersectedPairs = m_leftTree->test(m_leftTree->root(), m_rightTree->root(), &m_secondMeshFaceAABBs);
 }

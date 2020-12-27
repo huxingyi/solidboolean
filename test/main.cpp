@@ -106,6 +106,7 @@ int main(int argc, char ** argv)
     std::cout << "Duration:" << duration << std::endl;
     
     std::cout << "\tsearchPotentialIntersectedPairs:" << std::chrono::duration_cast<std::chrono::milliseconds>(solidBoolean.benchEnd_searchPotentialIntersectedPairs - solidBoolean.benchBegin_searchPotentialIntersectedPairs).count() << std::endl;
+    std::cout << "\t\tbuildTrees:" << std::chrono::duration_cast<std::chrono::milliseconds>(solidBoolean.benchEnd_buildTrees - solidBoolean.benchBegin_buildTrees).count() << std::endl;
     std::cout << "\tprocessPotentialIntersectedPairs:" << std::chrono::duration_cast<std::chrono::milliseconds>(solidBoolean.benchEnd_processPotentialIntersectedPairs - solidBoolean.benchBegin_processPotentialIntersectedPairs).count() << std::endl;
     std::cout << "\taddUnintersectedTriangles:" << std::chrono::duration_cast<std::chrono::milliseconds>(solidBoolean.benchEnd_addUnintersectedTriangles - solidBoolean.benchBegin_addUnintersectedTriangles).count() << std::endl;
     std::cout << "\treTriangulate:" << std::chrono::duration_cast<std::chrono::milliseconds>(solidBoolean.benchEnd_reTriangulate - solidBoolean.benchBegin_reTriangulate).count() << std::endl;
