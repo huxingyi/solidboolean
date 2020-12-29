@@ -24,7 +24,9 @@
 
 SolidMesh::~SolidMesh()
 {
-    delete m_trangleNormals;
+    delete m_triangleNormals;
+    delete m_axisAlignedBoundingBoxTree;
+    delete m_triangleAxisAlignedBoundingBoxes;
 }
 
 void SolidMesh::setVertices(const std::vector<Vector3> *vertices)
@@ -37,34 +39,38 @@ void SolidMesh::setTriangles(const std::vector<std::vector<size_t>> *triangles)
     m_triangles = triangles;
 }
 
-const std::vector<Vector3> *SolidMesh::vertices() const
-{
-    return m_vertices;
-}
-
-const std::vector<std::vector<size_t>> *SolidMesh::triangles() const
-{
-    return m_triangles;
-}
-
-const std::vector<Vector3> *SolidMesh::triangleNormals() const
-{
-    return m_trangleNormals;
-}
-
-void SolidMesh::calculateTriangleNormals()
+void SolidMesh::prepare()
 {
     if (nullptr == m_triangles)
         return;
     
-    delete m_trangleNormals;
-    m_trangleNormals = new std::vector<Vector3>;
-    m_trangleNormals->reserve(m_triangles->size());
+    m_triangleNormals = new std::vector<Vector3>;
+    m_triangleNormals->reserve(m_triangles->size());
     for (const auto &it: *m_triangles) {
-        m_trangleNormals->push_back(
+        m_triangleNormals->push_back(
             Vector3::normal((*m_vertices)[it[0]], 
                 (*m_vertices)[it[1]], 
                 (*m_vertices)[it[2]])
         );
     }
+    
+    m_triangleAxisAlignedBoundingBoxes = new std::vector<AxisAlignedBoudingBox>(m_triangles->size());
+    
+    for (size_t i = 0; i < m_triangleAxisAlignedBoundingBoxes->size(); ++i) {
+        addTriagleToAxisAlignedBoundingBox((*m_triangles)[i], &(*m_triangleAxisAlignedBoundingBoxes)[i]);
+        (*m_triangleAxisAlignedBoundingBoxes)[i].updateCenter();
+    }
+    
+    std::vector<size_t> firstGroupOfFacesIn;
+    for (size_t i = 0; i < m_triangleAxisAlignedBoundingBoxes->size(); ++i)
+        firstGroupOfFacesIn.push_back(i);
+    
+    AxisAlignedBoudingBox groupBox;
+    for (const auto &i: firstGroupOfFacesIn) {
+        addTriagleToAxisAlignedBoundingBox((*m_triangles)[i], &groupBox);
+    }
+    groupBox.updateCenter();
+    
+    m_axisAlignedBoundingBoxTree = new AxisAlignedBoudingBoxTree(m_triangleAxisAlignedBoundingBoxes, 
+        firstGroupOfFacesIn, groupBox);
 }

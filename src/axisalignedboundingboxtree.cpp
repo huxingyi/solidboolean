@@ -44,26 +44,19 @@ AxisAlignedBoudingBoxTree::AxisAlignedBoudingBoxTree(const std::vector<AxisAlign
     splitNode(m_root);
 }
 
-AxisAlignedBoudingBoxTree::Node *AxisAlignedBoudingBoxTree::root()
+const AxisAlignedBoudingBoxTree::Node *AxisAlignedBoudingBoxTree::root() const
 {
     return m_root;
+}
+
+const std::vector<AxisAlignedBoudingBox> *AxisAlignedBoudingBoxTree::boxes() const
+{
+    return m_boxes;
 }
 
 AxisAlignedBoudingBoxTree::~AxisAlignedBoudingBoxTree()
 {
     deleteNode(m_root);
-    delete m_testPairs;
-}
-
-std::vector<std::pair<size_t, size_t>> *AxisAlignedBoudingBoxTree::test(const Node *first, const Node *second,
-    const std::vector<AxisAlignedBoudingBox> *secondBoxes)
-{
-    m_secondBoxes = secondBoxes;
-    m_testPairs = new std::vector<std::pair<size_t, size_t>>;
-    testNodes(first, second);
-    auto testPairs = m_testPairs;
-    m_testPairs = nullptr;
-    return testPairs;
 }
 
 void AxisAlignedBoudingBoxTree::deleteNode(Node *node)

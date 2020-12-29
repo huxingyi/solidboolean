@@ -28,8 +28,6 @@
 #include <chrono>
 #include "vector3.h"
 #include "solidmesh.h"
-#include "axisalignedboundingboxtree.h"
-#include "axisalignedboundingbox.h"
 #include "positionkey.h"
 
 class SolidBoolean
@@ -44,8 +42,6 @@ public:
     void fetchIntersect(std::vector<std::vector<size_t>> &resultTriangles);
     
     const std::vector<Vector3> &resultVertices();
-    std::chrono::time_point<std::chrono::high_resolution_clock> benchBegin_buildTrees;
-    std::chrono::time_point<std::chrono::high_resolution_clock> benchEnd_buildTrees;
     std::chrono::time_point<std::chrono::high_resolution_clock> benchBegin_searchPotentialIntersectedPairs;
     std::chrono::time_point<std::chrono::high_resolution_clock> benchEnd_searchPotentialIntersectedPairs;
     std::chrono::time_point<std::chrono::high_resolution_clock> benchBegin_processPotentialIntersectedPairs;
@@ -63,11 +59,7 @@ public:
 private:
     const SolidMesh *m_firstMesh = nullptr;
     const SolidMesh *m_secondMesh = nullptr;
-    AxisAlignedBoudingBoxTree *m_leftTree = nullptr;
-    AxisAlignedBoudingBoxTree *m_rightTree = nullptr;
-    std::vector<std::pair<size_t, size_t>> *m_potentialIntersectedPairs = nullptr;
-    std::vector<AxisAlignedBoudingBox> m_firstMeshFaceAABBs;
-    std::vector<AxisAlignedBoudingBox> m_secondMeshFaceAABBs;
+    std::vector<std::pair<size_t, size_t>> m_potentialIntersectedPairs;
     std::vector<Vector3> m_newVertices;
     std::vector<std::vector<size_t>> m_newTriangles;
     std::map<PositionKey, size_t> m_newPositionMap;
@@ -97,7 +89,7 @@ private:
         std::vector<std::vector<size_t>> &polygons);
     bool isPointInMesh(const Vector3 &testPosition, 
         const SolidMesh *targetMesh,
-        AxisAlignedBoudingBoxTree *meshBoxTree,
+        const AxisAlignedBoudingBoxTree *meshBoxTree,
         const Vector3 &testAxis);
     void buildFaceGroups(const std::vector<std::vector<size_t>> &intersections,
         const std::unordered_map<uint64_t, size_t> &halfEdges,
@@ -111,7 +103,7 @@ private:
         std::unordered_map<uint64_t, size_t> *halfEdges);
     void decideGroupSide(const std::vector<std::vector<size_t>> &groups,
         const SolidMesh *mesh,
-        AxisAlignedBoudingBoxTree *tree,
+        const AxisAlignedBoudingBoxTree *tree,
         std::vector<bool> &groupSides);
 };
 

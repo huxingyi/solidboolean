@@ -45,56 +45,58 @@ public:
     AxisAlignedBoudingBoxTree(const std::vector<AxisAlignedBoudingBox> *boxes,
         const std::vector<size_t> &boxIndices,
         const AxisAlignedBoudingBox &outterBox);
-    Node *root();
+    const Node *root() const;
+    const std::vector<AxisAlignedBoudingBox> *boxes() const;
     ~AxisAlignedBoudingBoxTree();
     void splitNode(Node *node);
     void deleteNode(Node *node);
     
-    void testNodes(const Node *first, const Node *second)
+    void testNodes(const Node *first, 
+        const Node *second, 
+        const std::vector<AxisAlignedBoudingBox> *secondBoxes,
+        std::vector<std::pair<size_t, size_t>> *pairs) const
     {
         if (first->boundingBox.intersectWith(second->boundingBox)) {
             if (first->isLeaf()) {
                 if (second->isLeaf()) {
                     for (const auto &a: first->boxIndices) {
                         for (const auto &b: second->boxIndices) {
-                            if ((*m_boxes)[a].intersectWith((*m_secondBoxes)[b])) {
-                                m_testPairs->push_back(std::make_pair(a, b));
+                            if ((*m_boxes)[a].intersectWith((*secondBoxes)[b])) {
+                                pairs->push_back(std::make_pair(a, b));
                             }
                         }
                     }
-                    if ((*m_boxes)[first->boxIndices.front()].intersectWith(
-                            (*m_secondBoxes)[second->boxIndices.front()])) {
-                        m_testPairs->push_back(std::make_pair(first->boxIndices.front(),
-                            second->boxIndices.front()));
-                    }
                 } else {
-                    testNodes(first, second->left);
-                    testNodes(first, second->right);
+                    testNodes(first, second->left, secondBoxes, pairs);
+                    testNodes(first, second->right, secondBoxes, pairs);
                 }
             } else {
                 if (second->isLeaf()) {
-                    testNodes(first->left, second);
-                    testNodes(first->right, second);
+                    testNodes(first->left, second, secondBoxes, pairs);
+                    testNodes(first->right, second, secondBoxes, pairs);
                 } else {
                     if (first->boxIndices.size() < second->boxIndices.size()) {
-                        testNodes(first, second->left);
-                        testNodes(first, second->right);
+                        testNodes(first, second->left, secondBoxes, pairs);
+                        testNodes(first, second->right, secondBoxes, pairs);
                     } else {
-                        testNodes(first->left, second);
-                        testNodes(first->right, second);
+                        testNodes(first->left, second, secondBoxes, pairs);
+                        testNodes(first->right, second, secondBoxes, pairs);
                     }
                 }
             }
         }
     }
     
-    std::vector<std::pair<size_t, size_t>> *test(const Node *first, const Node *second,
-        const std::vector<AxisAlignedBoudingBox> *secondBoxes);
+    void test(const Node *first, const Node *second,
+        const std::vector<AxisAlignedBoudingBox> *secondBoxes,
+        std::vector<std::pair<size_t, size_t>> *pairs) const
+    {
+        testNodes(first, second, secondBoxes, pairs);
+    }
+    
 private:
     const std::vector<AxisAlignedBoudingBox> *m_boxes = nullptr;
-    const std::vector<AxisAlignedBoudingBox> *m_secondBoxes = nullptr;
     Node *m_root = nullptr;
-    std::vector<std::pair<size_t, size_t>> *m_testPairs = nullptr;
     std::vector<size_t> m_boxIndicesOrderList;
     std::vector<std::pair<size_t, float>> m_spans = std::vector<std::pair<size_t, float>>(3);
     
