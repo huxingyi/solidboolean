@@ -89,7 +89,8 @@ void ReTriangulator::lookupPolylinesFromNeighborMap(const std::unordered_map<siz
                 continue;
             }
         }
-        m_polylines.push_back(polyline);
+        if (polyline.size() >= 2)
+            m_polylines.push_back(polyline);
     }
 }
 
